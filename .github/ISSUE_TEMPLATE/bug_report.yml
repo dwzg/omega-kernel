@@ -1,0 +1,43 @@
+name: Bug report
+description: Something doesn't work as expected
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Kernel version
+      description: Shown under Settings → About (e.g. "2.0.0 (1a2b3c4)").
+    validations:
+      required: true
+  - type: input
+    id: firmware
+    attributes:
+      label: Firmware version
+      description: Also shown under About.
+  - type: input
+    id: game
+    attributes:
+      label: Game
+      description: Name and game code (shown on the game page, e.g. AMTE), if the problem is with a game.
+  - type: dropdown
+    id: start
+    attributes:
+      label: How was the game started?
+      multiple: true
+      options:
+        - Not about a game
+        - Play
+        - Play with add-ons
+        - From NOR flash
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: Steps to reproduce, what you expected, and what happened instead. Photos of the screen help.
+    validations:
+      required: true
+  - type: textarea
+    id: settings
+    attributes:
+      label: Settings
+      description: Which add-ons were enabled (return to menu, save states, sleep, cheats)? Save type setting?

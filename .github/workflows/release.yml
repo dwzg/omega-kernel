@@ -1,0 +1,50 @@
+# Publishes a GitHub release when a version tag is pushed:
+#
+#   1. Update VERSION and CHANGELOG.md, commit.
+#   2. git tag v2.1.0 && git push origin v2.1.0
+#
+# See docs/releasing.md.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    container: devkitpro/devkitarm:latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Trust the checkout (container runs as root)
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Tag must match VERSION
+        run: |
+          version="$(cat VERSION)"
+          if [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match VERSION ${version}" >&2
+            exit 1
+          fi
+      - name: Build
+        run: make -j"$(nproc)"
+      - name: Package
+        run: |
+          mkdir -p dist
+          cp ezkernel.bin "dist/ezkernel-${GITHUB_REF_NAME}.bin"
+          cp ezkernel.bin dist/ezkernel.bin
+          cd dist && sha256sum ezkernel*.bin > SHA256SUMS
+      - name: Release notes from CHANGELOG.md
+        run: python3 tools/changelog_section.py "$(cat VERSION)" > dist/notes.md
+      - uses: softprops/action-gh-release@v2
+        with:
+          body_path: dist/notes.md
+          files: |
+            dist/ezkernel.bin
+            dist/ezkernel-${{ github.ref_name }}.bin
+            dist/SHA256SUMS
+          prerelease: ${{ contains(github.ref_name, '-') }}

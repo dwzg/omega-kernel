@@ -1,167 +1,155 @@
-#---------------------------------------------------------------------------------
+# =============================================================================
+# EZ-FLASH OMEGA kernel
+#
+#   make              build ezkernel.gba and ezkernel.bin (the upgrade file)
+#   make test         build and run the host unit tests (needs a host C compiler)
+#   make format       format all project sources with clang-format
+#   make format-check fail if any source is not formatted
+#   make lint         run cppcheck on the project sources
+#   make docs         generate the API reference with Doxygen (build/docs)
+#   make clean        remove all build output
+#
+# The cartridge build needs devkitPro with devkitARM and libgba; see
+# docs/building.md. Variables you can override: V=1 (verbose), VERSION.
+# =============================================================================
+
 .SUFFIXES:
-#---------------------------------------------------------------------------------
+.DEFAULT_GOAL := all
 
-ifeq ($(strip $(DEVKITARM)),)
-$(error "Please set DEVKITARM in your environment. export DEVKITARM=<path to>devkitARM")
-endif
+TARGET    := ezkernel
+BUILD     := build
+VERSION   ?= $(shell cat VERSION 2>/dev/null || echo 0.0.0)
+REVISION  ?= $(shell git rev-parse --short=7 HEAD 2>/dev/null || echo unknown)
 
-include $(DEVKITARM)/gba_rules
+# Project layout -------------------------------------------------------------
+SOURCE_DIRS   := src src/hal src/core src/patch src/patch/payloads src/loader src/gfx \
+                 src/ui src/platform/gba src/data third_party/fatfs
+INCLUDE_DIRS  := src third_party/fatfs $(BUILD)/gen
+BINARY_DIRS   := assets/firmware assets/patches assets/fonts
 
-#---------------------------------------------------------------------------------
-# TARGET is the name of the output
-# BUILD is the directory where object files & intermediate files will be placed
-# SOURCES is a list of directories containing source code
-# INCLUDES is a list of directories containing extra header files
-# DATA is a list of directories containing binary data
-# GRAPHICS is a list of directories containing files to be processed by grit
-#
-# All directories are specified relative to the project directory where
-# the makefile is found
-#
-#---------------------------------------------------------------------------------
-TARGET		:= $(notdir $(CURDIR))
-BUILD		:= build
-SOURCES		:= source source/ff15
-INCLUDES	:= include source/ff15
-DATA		:= font
-MUSIC		:=
+CFILES   := $(foreach d,$(SOURCE_DIRS),$(wildcard $(d)/*.c))
+SFILES   := $(foreach d,$(SOURCE_DIRS),$(wildcard $(d)/*.s))
+BINFILES := $(foreach d,$(BINARY_DIRS),$(wildcard $(d)/*.bin))
 
-#---------------------------------------------------------------------------------
-# options for code generation
-#---------------------------------------------------------------------------------
-ARCH	:=	-mthumb -mthumb-interwork
+# Files we format and lint (third-party code is left as upstream wrote it).
+OWN_SOURCES := $(shell find src tests tools -name '*.[ch]' 2>/dev/null | grep -v '/data/')
 
-CFLAGS	:=	-g -Wall -Os\
-		-mcpu=arm7tdmi -mtune=arm7tdmi\
- 		-fomit-frame-pointer\
-		-ffast-math \
-		$(ARCH)
+# Host-side targets (no devkitARM needed) -------------------------------------
+CLANG_FORMAT ?= clang-format
 
-CFLAGS	+=	$(INCLUDE)
+.PHONY: test format format-check lint docs clean
 
-CXXFLAGS	:=	$(CFLAGS) -fno-rtti -fno-exceptions
+test:
+	@$(MAKE) --no-print-directory -C tests
 
-ASFLAGS	:=	-g $(ARCH)
-LDFLAGS	=	-g $(ARCH) -Wl,-Map,$(notdir $*.map)
+format:
+	@$(CLANG_FORMAT) -i $(OWN_SOURCES)
 
-#---------------------------------------------------------------------------------
-# any extra libraries we wish to link with the project
-#---------------------------------------------------------------------------------
-LIBS	:= -lgba
- 
- 
-#---------------------------------------------------------------------------------
-# list of directories containing libraries, this must be the top level containing
-# include and lib
-#---------------------------------------------------------------------------------
-LIBDIRS	:=	$(LIBGBA)
+format-check:
+	@$(CLANG_FORMAT) --dry-run --Werror $(OWN_SOURCES)
 
-#---------------------------------------------------------------------------------
-# no real need to edit anything past this point unless you need to add additional
-# rules for different file extensions
-#---------------------------------------------------------------------------------
+lint:
+	@cppcheck --quiet --error-exitcode=1 --std=c11 --enable=warning,performance,portability \
+		--inline-suppr --suppress=missingIncludeSystem -D__GBA__ -DIWRAM_CODE= -DEWRAM_BSS= \
+		$(addprefix -I,src third_party/fatfs) src
 
+docs:
+	@mkdir -p $(BUILD)
+	@doxygen Doxyfile
 
-ifneq ($(BUILDDIR), $(CURDIR))
-#---------------------------------------------------------------------------------
- 
-export OUTPUT	:=	$(CURDIR)/$(TARGET)
- 
-export VPATH	:=	$(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) \
-					$(foreach dir,$(DATA),$(CURDIR)/$(dir)) \
-					$(foreach dir,$(GRAPHICS),$(CURDIR)/$(dir))
-
-export DEPSDIR	:=	$(CURDIR)/$(BUILD)
-
-CFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
-CPPFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
-SFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
-BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.*)))
-
-ifneq ($(strip $(MUSIC)),)
-	export AUDIOFILES	:=	$(foreach dir,$(notdir $(wildcard $(MUSIC)/*.*)),$(CURDIR)/$(MUSIC)/$(dir))
-	BINFILES += soundbank.bin
-endif
-
-#---------------------------------------------------------------------------------
-# use CXX for linking C++ projects, CC for standard C
-#---------------------------------------------------------------------------------
-ifeq ($(strip $(CPPFILES)),)
-#---------------------------------------------------------------------------------
-	export LD	:=	$(CC)
-#---------------------------------------------------------------------------------
-else
-#---------------------------------------------------------------------------------
-	export LD	:=	$(CXX)
-#---------------------------------------------------------------------------------
-endif
-#---------------------------------------------------------------------------------
-
-export OFILES_BIN := $(addsuffix .o,$(BINFILES))
-
-export OFILES_SOURCES := $(CPPFILES:.cpp=.o) $(CFILES:.c=.o) $(SFILES:.s=.o)
- 
-export OFILES := $(OFILES_BIN) $(OFILES_SOURCES)
-
-export HFILES := $(addsuffix .h,$(subst .,_,$(BINFILES)))
-
-export INCLUDE	:=	$(foreach dir,$(INCLUDES),-iquote $(CURDIR)/$(dir)) \
-					$(foreach dir,$(LIBDIRS),-I$(dir)/include) \
-					-I$(CURDIR)/$(BUILD)
- 
-export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
-
-.PHONY: $(BUILD) clean
- 
-#---------------------------------------------------------------------------------
-$(BUILD):
-	@[ -d $@ ] || mkdir -p $@
-	@$(MAKE) BUILDDIR=`cd $(BUILD) && pwd` --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
-
-#---------------------------------------------------------------------------------
 clean:
 	@echo clean ...
-	@rm -fr $(BUILD) $(TARGET).elf $(TARGET).gba 
- 
- 
-#---------------------------------------------------------------------------------
-else
- 
-#---------------------------------------------------------------------------------
-# main targets
-#---------------------------------------------------------------------------------
+	@rm -rf $(BUILD) $(TARGET).elf $(TARGET).gba $(TARGET).bin $(TARGET).map
+	@$(MAKE) --no-print-directory -C tests clean
 
-$(OUTPUT).gba	:	$(OUTPUT).elf
+# Cartridge build -------------------------------------------------------------
+ifneq ($(filter-out test format format-check lint docs clean,$(or $(MAKECMDGOALS),all)),)
 
-$(OUTPUT).elf	:	$(OFILES)
-
-$(OFILES_SOURCES) : $(HFILES)
-
-#---------------------------------------------------------------------------------
-# The bin2o rule should be copied and modified
-# for each extension used in the data directories
-#---------------------------------------------------------------------------------
-
-#---------------------------------------------------------------------------------
-# rule to build soundbank from music files
-#---------------------------------------------------------------------------------
-soundbank.bin soundbank.h : $(AUDIOFILES)
-#---------------------------------------------------------------------------------
-	@mmutil $^ -osoundbank.bin -hsoundbank.h
-
-#---------------------------------------------------------------------------------
-# This rule links in binary data with the .bin extension
-#---------------------------------------------------------------------------------
-%.bin.o	%_bin.h :	%.bin
-#---------------------------------------------------------------------------------
-	@echo $(notdir $<)
-	@$(bin2o)
-
-
- 
--include $(DEPSDIR)/*.d
- 
-#---------------------------------------------------------------------------------------
+ifeq ($(strip $(DEVKITARM)),)
+$(error DEVKITARM is not set. Install devkitPro (gba-dev) or run ./build.sh; see docs/building.md)
 endif
-#---------------------------------------------------------------------------------------
+include $(DEVKITARM)/gba_rules
+
+GAME_TITLE := EZKERNEL
+GAME_CODE  := EZOK
+MAKER_CODE := EZ
+
+ARCH     := -mthumb -mthumb-interwork -mcpu=arm7tdmi -mtune=arm7tdmi
+DEFINES  := -D__GBA__ -DKERNEL_VERSION=\"$(VERSION)\" -DKERNEL_REVISION=\"$(REVISION)\"
+INCLUDES := $(addprefix -iquote ,$(INCLUDE_DIRS)) -isystem $(LIBGBA)/include
+WARNINGS := -Wall -Wextra -Wshadow -Wstrict-prototypes -Wmissing-prototypes -Wno-unused-parameter
+CFLAGS   := -std=gnu17 -Os -g -fomit-frame-pointer $(ARCH) $(DEFINES) $(INCLUDES)
+ASFLAGS  := -g $(ARCH)
+LDFLAGS  := -g $(ARCH) -specs=gba.specs -Wl,-Map,$(BUILD)/$(TARGET).map
+
+# FatFs is third-party code: build it with the plain -Wall set.
+$(BUILD)/obj/third_party/%.o: WARNINGS := -Wall
+# Generated asset/database sources may have long initialisers.
+$(BUILD)/obj/src/data/%.o: WARNINGS := -Wall
+
+GEN      := $(BUILD)/gen
+BIN_OBJS := $(patsubst %.bin,$(GEN)/%_bin.o,$(notdir $(BINFILES)))
+GEN_HDRS := $(BIN_OBJS:.o=.h)
+OBJS     := $(CFILES:%.c=$(BUILD)/obj/%.o) $(SFILES:%.s=$(BUILD)/obj/%.o) $(BIN_OBJS)
+DEPS     := $(OBJS:.o=.d)
+
+vpath %.bin $(BINARY_DIRS)
+
+ifeq ($(V),1)
+Q :=
+else
+Q := @
+endif
+
+.PHONY: all size
+all: $(TARGET).bin
+
+$(TARGET).bin: $(TARGET).gba
+	$(Q)cp $< $@
+	@echo upgrade file ... $@
+
+$(TARGET).gba: $(TARGET).elf
+
+# Machine-code sanity checks on the linked kernel (see the scripts).
+$(BUILD)/elf-checks.stamp: $(TARGET).elf tools/check_iwram_calls.py tools/check_thumb_entries.py
+	@$(PREFIX)objdump -d -j .iwram $< | python3 tools/check_iwram_calls.py > /dev/null
+	@$(PREFIX)readelf -s $< | python3 tools/check_thumb_entries.py
+	@touch $@
+
+$(TARGET).bin: $(BUILD)/elf-checks.stamp
+
+$(TARGET).elf: $(OBJS) tools/memory_limits.ld
+	@echo linking $@
+	$(Q)$(CC) $(LDFLAGS) $(OBJS) -L$(LIBGBA)/lib -lgba tools/memory_limits.ld -o $@
+
+$(BUILD)/obj/%.o: %.c | $(GEN_HDRS)
+	@echo $<
+	@mkdir -p $(@D)
+	$(Q)$(CC) -MMD -MP -MF $(@:.o=.d) $(CFLAGS) $(WARNINGS) -c $< -o $@
+
+$(BUILD)/obj/%.o: %.s
+	@echo $<
+	@mkdir -p $(@D)
+	$(Q)$(CC) -MMD -MP -MF $(@:.o=.d) -x assembler-with-cpp $(ASFLAGS) -c $< -o $@
+
+# Binary assets -> assembly with bin2s -> object, plus a header declaring
+#   <name>_bin, <name>_bin_end and <name>_bin_size.
+$(GEN)/%_bin.s $(GEN)/%_bin.h: %.bin
+	@echo $(notdir $<)
+	@mkdir -p $(GEN)
+	$(Q)bin2s -a 4 -H $(GEN)/$*_bin.h $< > $(GEN)/$*_bin.s
+
+$(GEN)/%.o: $(GEN)/%.s
+	$(Q)$(CC) -x assembler-with-cpp $(ASFLAGS) -c $< -o $@
+
+# Keep generated files (they are intermediate in make's eyes).
+.SECONDARY:
+
+size: $(TARGET).elf
+	@$(PREFIX)size -A $< | grep -E '^\.(text|rodata|iwram|data|bss|sbss|ewram) '
+	@end=$$($(PREFIX)nm $< | sed -n 's/^\([0-9a-f]*\) . __sbss_end__$$/\1/p'); \
+		echo "EWRAM free: $$((0x02040000 - 0x$$end)) bytes"
+
+-include $(DEPS)
+
+endif

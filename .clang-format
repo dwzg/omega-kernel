@@ -1,0 +1,19 @@
+# Code style for the kernel's own sources (src/, tests/).
+# third_party/ and the generated data tables in src/data/ are not formatted.
+# Check:  make format-check     Apply:  make format
+BasedOnStyle: LLVM
+IndentWidth: 4
+ColumnLimit: 100
+BreakBeforeBraces: Linux
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortEnumsOnASingleLine: true
+IndentCaseLabels: false
+PointerAlignment: Right
+SortIncludes: CaseSensitive
+IncludeBlocks: Preserve
+AlignConsecutiveMacros: false
+AlignTrailingComments: true
+SpaceAfterCStyleCast: false
+Cpp11BracedListStyle: true

@@ -1,5 +1,19 @@
-build/
-ezkernel.bin
-ezkernel.elf
-ezkernel.gba
-copy.bat
+# Build output
+/build/
+/ezkernel.bin
+/ezkernel.elf
+/ezkernel.gba
+*.map
+
+# Host tests and simulator
+/tests/build/
+
+# Python
+__pycache__/
+
+# Editors and OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

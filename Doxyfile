@@ -1,0 +1,22 @@
+# API documentation: make docs (output in build/docs/html/index.html).
+PROJECT_NAME           = "Omega Kernel"
+PROJECT_BRIEF          = "Kernel for the EZ-FLASH OMEGA GBA flash cartridge"
+OUTPUT_DIRECTORY       = build/docs
+INPUT                  = src README.md docs
+FILE_PATTERNS          = *.c *.h *.md
+RECURSIVE              = YES
+EXCLUDE                = src/data
+USE_MDFILE_AS_MAINPAGE = README.md
+EXTRACT_ALL            = YES
+EXTRACT_STATIC         = YES
+OPTIMIZE_OUTPUT_FOR_C  = YES
+JAVADOC_AUTOBRIEF      = YES
+MARKDOWN_SUPPORT       = YES
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+SOURCE_BROWSER         = YES
+HAVE_DOT               = NO
+QUIET                  = YES
+WARN_IF_UNDOCUMENTED   = NO
+PREDEFINED             = __GBA__ IWRAM_CODE= EWRAM_BSS= PLATFORM_EWRAM= PLATFORM_FAST_CODE= \
+                         ALWAYS_INLINE=

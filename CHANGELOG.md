@@ -1,0 +1,57 @@
+# Changelog
+
+All notable changes to this project are documented here. The format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
+[Semantic Versioning](https://semver.org/).
+
+## [Unreleased]
+
+## [2.0.0] - 2026-10-05
+
+A rewrite of the kernel with a new interface. Saves, save states, settings,
+games in NOR flash, cheat files and thumbnails from the original kernel keep
+working.
+
+### Removed
+
+- **Chinese language support.** The interface is English only. Cartridges set
+  to Chinese switch to English.
+- **The NES, Game Boy and Game Boy Color emulators.** The kernel starts GBA
+  games only; `.nes`, `.gb` and `.gbc` files are no longer listed.
+- The thumbnail on/off option of the old interface (box art is shown whenever it is on the card).
+
+### Changed
+
+- **New interface**: crisp pixel fonts (Galmuri), one list per screen, a
+  title bar with clock, a bar at the bottom showing what each button does,
+  and a game page with full-size box art, game code, size and save type.
+  Settings show On / Off; dialogs say which button does what.
+- The kernel opens the SD card directly; **B** in the top folder leads to the
+  main menu (SD Card, NOR Flash, Recently Played, Settings, About).
+- Settings are a single list; hotkeys and the clock have their own editors.
+  The weekday is calculated from the date.
+- File names are read with code page 437 instead of 936; characters outside
+  ASCII are shown as `?`.
+- The code base is reorganised into layers with documentation, unit tests,
+  a UI simulator, CI and automatic releases.
+
+### Fixed
+
+- Games without the archive attribute, or marked read-only, were not listed.
+  Hidden and system files are still left out.
+- SD card read errors are reported instead of starting a corrupted game.
+- Payloads crossing an 8 MB PSRAM page were cut off (affected save states and
+  long cheat lists in games of 16-32 MB).
+- Copying a second game to NOR in the same session could apply patches meant
+  for the first one.
+- Copying a full 32 MB game with add-ons to NOR could place the add-on code
+  outside the cartridge; long cheat lists in NOR could be cut off while the
+  game still expected them.
+- A cheat value ending with `;` added a bogus code writing to address 0.
+- Very fragmented ROMs or saves could overflow the table sent to the FPGA;
+  they are now refused with a message.
+- Many buffer overflows with long file names, paths and cheat files.
+- The recently played list could lose or duplicate entries.
+- The last page of a firmware update was padded with unrelated memory.
+- Unknown settings words are preserved instead of being reset.
+- Corrupt `.pat` cache files are ignored instead of being used.

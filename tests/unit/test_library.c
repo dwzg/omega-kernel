@@ -15,6 +15,8 @@ TEST(save_type_lookup_known_and_unknown)
     CHECK_EQ(SAVE_MODE_SRAM, save_type_lookup("AD2J"));
     CHECK_EQ(SAVE_MODE_DEFAULT, save_type_lookup("ZZZZ"));
     CHECK_EQ(SAVE_MODE_DEFAULT, save_type_lookup("FFFF")); /* the end marker */
+    /* Corrected entry: Gauntlet - Dark Legacy uses 512 B EEPROM. */
+    CHECK_EQ(SAVE_MODE_EEPROM_512, save_type_lookup("AYGE"));
 }
 
 TEST(save_type_resolve_eeprom_depends_on_rom_size)

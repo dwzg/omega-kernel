@@ -2,10 +2,12 @@
  * @file test_library.c
  * @brief Tests for core/save_type, core/recent, core/list_view and core/crc32.
  */
+#include <stdio.h>
 #include <string.h>
 
 #include "check.h"
 #include "core/crc32.h"
+#include "core/favorites.h"
 #include "core/list_view.h"
 #include "core/recent.h"
 #include "core/save_type.h"
@@ -91,6 +93,42 @@ TEST(save_type_db_is_well_formed)
               m == 0x32 || m == 0x33);
     }
     CHECK(n > 2000);
+}
+
+TEST(favorites_add_find_remove)
+{
+    static favorites_t f;
+    favorites_clear(&f);
+    CHECK(favorites_add(&f, "/A.gba"));
+    CHECK(favorites_add(&f, "/GBA/B.gba"));
+    CHECK(favorites_add(&f, "/A.gba")); /* already there: no duplicate */
+    CHECK_EQ(2, f.count);
+    CHECK_EQ(1, favorites_find(&f, "/GBA/B.gba"));
+    favorites_remove(&f, "/A.gba");
+    CHECK_EQ(1, f.count);
+    CHECK_STR("/GBA/B.gba", f.entries[0]);
+    CHECK_EQ(-1, favorites_find(&f, "/A.gba"));
+    favorites_remove(&f, "/missing.gba"); /* no effect */
+    CHECK_EQ(1, f.count);
+}
+
+TEST(favorites_limits_and_file_lines)
+{
+    static favorites_t f;
+    char path[32];
+    favorites_clear(&f);
+    CHECK(favorites_append_line(&f, "/One.gba\r\n"));
+    CHECK(favorites_append_line(&f, "not a path\n")); /* skipped */
+    CHECK(favorites_append_line(&f, "/One.gba\n"));   /* duplicate skipped */
+    CHECK_EQ(1, f.count);
+    CHECK_STR("/One.gba", f.entries[0]);
+    for (unsigned i = 1; i < FAVORITES_MAX; i++) {
+        snprintf(path, sizeof(path), "/Game %u.gba", i);
+        CHECK(favorites_add(&f, path));
+    }
+    CHECK(!favorites_add(&f, "/One more.gba"));
+    CHECK(!favorites_append_line(&f, "/One more.gba"));
+    CHECK_EQ(FAVORITES_MAX, f.count);
 }
 
 TEST(recent_touch_moves_to_front)
@@ -189,6 +227,8 @@ TEST(crc32_matches_reference)
 SUITE(library)
 {
     RUN(save_type_lookup_known_and_unknown);
+    RUN(favorites_add_find_remove);
+    RUN(favorites_limits_and_file_lines);
     RUN(save_type_detect_finds_library_markers);
     RUN(save_type_detect_ignores_lookalikes);
     RUN(save_type_known_matches_database);

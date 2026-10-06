@@ -187,12 +187,14 @@ static const sim_step_t GAME_PAGE[] = {
     PRESS(BTN_RIGHT),
     WAIT(2),
     SHOT("game_page_save_type"),
+    DOWN, /* past Favorite */
     DOWN,
     A,
     WAIT(2),
     SHOT("confirm_delete"),
     B,
     WAIT(2),
+    UP,
     UP,
     UP,
     UP,
@@ -227,6 +229,7 @@ static const sim_step_t CHEATS[] = {
     A,
     WAIT(2),
     SHOT("game_page_cheats"),
+    DOWN, /* past Favorite */
     DOWN,
     DOWN,
     DOWN,
@@ -257,6 +260,7 @@ static const sim_step_t RECENT[] = {
     B,
     DOWN,
     DOWN,
+    DOWN,
     A,
     WAIT(2),
     SHOT("recent_from_menu"),
@@ -268,6 +272,7 @@ static const sim_step_t RECENT[] = {
 
 static const sim_step_t NOR_LIBRARY[] = {
     B,
+    DOWN,
     DOWN,
     A,
     WAIT(2),
@@ -313,6 +318,7 @@ static const sim_step_t NOR_LIBRARY[] = {
 
 static const sim_step_t SETTINGS[] = {
     B,
+    DOWN,
     DOWN,
     DOWN,
     DOWN,
@@ -404,16 +410,89 @@ static const sim_step_t WORLD_NAMES[] = {
 
 /* Metroid Fusion has a save and a backup (written before the run). */
 static const sim_step_t SAVE_BACKUP[] = {
-    WAIT(2), A,       DOWN,
-    DOWN,    DOWN,    DOWN,
-    DOWN,    WAIT(2), SHOT("game_page_restore"),
-    A,       WAIT(2), SHOT("restore_confirm"),
-    A,       WAIT(2), B,
-    B,       END,
+    WAIT(2),
+    A,
+    DOWN,
+    DOWN,
+    DOWN,
+    DOWN,
+    DOWN,
+    WAIT(2),
+    DOWN,
+    WAIT(2),
+    SHOT("game_page_restore"),
+    A,
+    WAIT(2),
+    SHOT("restore_confirm"),
+    A,
+    WAIT(2),
+    B,
+    B,
+    END,
+};
+
+static const sim_step_t FAVORITES_EMPTY[] = {
+    B, DOWN, A, WAIT(2), SHOT("favorites_empty"), END,
+};
+
+/* Mark Metroid Fusion, then Advance Wars; the list is sorted by name. */
+static const sim_step_t FAVORITES[] = {
+    DOWN,
+    DOWN,
+    DOWN,
+    DOWN,
+    DOWN,
+    DOWN,
+    DOWN,
+    DOWN,
+    DOWN,
+    DOWN, /* Metroid Fusion */
+    A,
+    DOWN,
+    DOWN,
+    DOWN,
+    DOWN,
+    DOWN,
+    A,
+    WAIT(2),
+    SHOT("game_page_favorite"),
+    B,
+    UP,
+    UP,
+    UP,
+    UP,
+    UP, /* Advance Wars */
+    A,
+    DOWN,
+    DOWN,
+    DOWN,
+    DOWN,
+    DOWN,
+    A,
+    B,
+    B,
+    DOWN,
+    A,
+    WAIT(2),
+    SHOT("favorites"),
+    DOWN,
+    A,
+    WAIT(2),
+    SHOT("favorites_game_page"), /* Metroid Fusion */
+    DOWN,
+    DOWN,
+    DOWN,
+    DOWN,
+    DOWN,
+    A,
+    B,
+    WAIT(2),
+    SHOT("favorites_after_remove"),
+    END,
 };
 
 static const sim_step_t ABOUT[] = {
-    B, DOWN, DOWN, DOWN, DOWN, A, WAIT(2), SHOT("about"), END,
+    B, DOWN, DOWN, DOWN, DOWN, DOWN, A, WAIT(2), SHOT("about"), END,
 };
 
 /* ------------------------------------------------------------- golden -- */
@@ -840,6 +919,16 @@ int main(int argc, char **argv)
         const golden_t *a = find_actual("jump_last");
         const golden_t *b = find_actual("jump_last_redrawn");
         EXPECT(a && b && a->crc == b->crc);
+    }
+    run(FAVORITES_EMPTY, NULL);
+    run(FAVORITES, NULL);
+    {
+        FIL f;
+        char line[64] = "";
+        EXPECT(f_open(&f, SD_FILE_FAVORITES, FA_READ) == FR_OK);
+        f_gets(line, sizeof(line), &f);
+        f_close(&f);
+        EXPECT(strcmp(line, "/Advance Wars.gba\n") == 0);
     }
     run(NOR_LIBRARY, NULL);
     run(SETTINGS, NULL);

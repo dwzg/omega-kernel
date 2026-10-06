@@ -24,6 +24,8 @@
 
 /** The recently played list. */
 #define SD_FILE_RECENT SD_DIR_SAVES "/Recently play.txt"
+/** Favorite games, one path per line. */
+#define SD_FILE_FAVORITES SD_DIR_SAVES "/Favorites.txt"
 /** Game code -> cheat library number. */
 #define SD_FILE_CHEAT_INDEX SD_DIR_CHEATS "/GameID2cht.bin"
 

@@ -12,6 +12,7 @@ and cartridges can be moved between the two.
 │   ├── <game>.sav
 │   ├── <game>.bak        the save from before the last start
 │   ├── <game>.mde
+│   ├── Favorites.txt
 │   └── Recently play.txt
 ├── RTS/                  save states: <game>.rts
 ├── PATCH/                patch caches: <game>.pat
@@ -80,6 +81,12 @@ them):
 
 Plain text, one absolute path per line, newest first, at most ten lines.
 Lines that don't start with `/` are ignored.
+
+## Favorites (`/SAVER/Favorites.txt`)
+
+Plain text, one absolute path per line, at most 64 lines, in the order they
+were added (the screen sorts them by name). Lines that don't start with `/`
+are ignored.
 
 ## Save states (`/RTS/*.rts`)
 

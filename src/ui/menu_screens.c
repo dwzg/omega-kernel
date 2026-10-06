@@ -27,12 +27,20 @@ static void display_name(char *out, size_t size, const char *name)
 
 /* ----------------------------------------------------------- main menu -- */
 
-typedef enum { MAIN_SD, MAIN_NOR, MAIN_RECENT, MAIN_SETTINGS, MAIN_ABOUT, MAIN_COUNT } main_item_t;
+typedef enum {
+    MAIN_SD,
+    MAIN_FAVORITES,
+    MAIN_NOR,
+    MAIN_RECENT,
+    MAIN_SETTINGS,
+    MAIN_ABOUT,
+    MAIN_COUNT
+} main_item_t;
 
 static void main_row(void *ctx, unsigned index, ui_row_t *row)
 {
     static const char *const LABELS[MAIN_COUNT] = {
-        "SD Card", "NOR Flash", "Recently Played", "Settings", "About",
+        "SD Card", "Favorites", "NOR Flash", "Recently Played", "Settings", "About",
     };
     (void)ctx;
     text_copy(row->label, sizeof(row->label), LABELS[index]);
@@ -64,6 +72,9 @@ void ui_main_menu(app_t *app)
         switch ((main_item_t)selected) {
         case MAIN_SD:
             ui_sd_browser(app);
+            break;
+        case MAIN_FAVORITES:
+            ui_favorites(app);
             break;
         case MAIN_NOR:
             ui_nor_library(app);
@@ -261,6 +272,79 @@ void ui_recent(app_t *app)
         selected = ui_list_selected(&list);
         char path[RECENT_ENTRY_LEN];
         text_copy(path, sizeof(path), g_recent.entries[selected]);
+        ui_game_page(app, path);
+    }
+}
+
+/* ------------------------------------------------------------ favorites -- */
+
+/** The favorites screen keeps its list in the scratch buffer. */
+typedef struct {
+    favorites_t list;
+    char names[FAVORITES_MAX][DIR_NAME_LEN]; /**< Full file names. */
+    uint8_t order[FAVORITES_MAX];            /**< Indexes sorted by name. */
+} favorites_screen_t;
+
+#define FAVORITES_SCREEN ((favorites_screen_t *)g_scratch)
+_Static_assert(sizeof(favorites_screen_t) <= SCRATCH_SIZE, "favorites must fit the scratch buffer");
+
+static void favorites_row(void *ctx, unsigned index, ui_row_t *row)
+{
+    (void)ctx;
+    const favorites_screen_t *f = FAVORITES_SCREEN;
+    display_name(row->label, sizeof(row->label), f->names[f->order[index]]);
+    row->kind = ROW_CHEVRON;
+}
+
+/** Load the favorites and sort them by name (insertion sort: at most 64). */
+static void favorites_load_sorted(void)
+{
+    favorites_screen_t *f = FAVORITES_SCREEN;
+    favorites_file_load(&f->list);
+    for (unsigned i = 0; i < f->list.count; i++) {
+        sd_long_name(f->list.entries[i], f->names[i], sizeof(f->names[i]));
+        unsigned j = i;
+        while (j > 0 && text_compare_names(f->names[f->order[j - 1]], f->names[i]) > 0) {
+            f->order[j] = f->order[j - 1];
+            j--;
+        }
+        f->order[j] = (uint8_t)i;
+    }
+}
+
+void ui_favorites(app_t *app)
+{
+    ui_list_t list;
+    input_t input;
+    unsigned selected = 0;
+
+    for (;;) {
+        platform_set_key_repeat(LIST_REPEAT_DELAY, LIST_REPEAT_RATE);
+        favorites_load_sorted();
+        unsigned count = FAVORITES_SCREEN->list.count;
+        ui_title_bar("Favorites", NULL);
+        ui_hints(count ? "A Select|B Back" : "B Back");
+        ui_list_init(&list, count, selected < count ? selected : 0, favorites_row, NULL,
+                     CONTENT_TOP, ROW_HEIGHT);
+        list.empty_text = "No favorites yet. Add games on their page.";
+        ui_list_draw(&list);
+
+        ui_list_event_t event;
+        do {
+            platform_wait_vblank();
+            ui_tick();
+            platform_read_input(&input);
+            event = ui_list_update(&list, &input);
+        } while (event == UI_LIST_IDLE);
+
+        if (event == UI_LIST_BACK) {
+            return;
+        }
+        selected = ui_list_selected(&list);
+        /* The game page reuses the scratch buffer: copy the path out. */
+        char path[RECENT_ENTRY_LEN];
+        text_copy(path, sizeof(path),
+                  FAVORITES_SCREEN->list.entries[FAVORITES_SCREEN->order[selected]]);
         ui_game_page(app, path);
     }
 }

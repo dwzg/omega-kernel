@@ -56,6 +56,36 @@ bool recent_file_save(const recent_list_t *list)
     return true;
 }
 
+/* ------------------------------------------------------------- favorites -- */
+
+void favorites_file_load(favorites_t *list)
+{
+    FIL file;
+    char line[RECENT_LINE_LEN];
+
+    favorites_clear(list);
+    if (f_open(&file, SD_FILE_FAVORITES, FA_READ) != FR_OK) {
+        return;
+    }
+    while (f_gets(line, sizeof(line), &file) != NULL && favorites_append_line(list, line)) {
+    }
+    f_close(&file);
+}
+
+bool favorites_file_save(const favorites_t *list)
+{
+    FIL file;
+    if (!sd_ensure_folder(SD_DIR_SAVES) ||
+        f_open(&file, SD_FILE_FAVORITES, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) {
+        return false;
+    }
+    for (unsigned i = 0; i < list->count; i++) {
+        f_printf(&file, "%s\n", list->entries[i]);
+    }
+    f_close(&file);
+    return true;
+}
+
 /* ----------------------------------------------------------- cheat files -- */
 
 static bool file_exists(const char *path)

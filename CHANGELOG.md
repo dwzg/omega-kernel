@@ -11,6 +11,8 @@ All notable changes to this project are documented here. The format follows
 - **Start where you left off.** The kernel opens the folder of the game you
   played last, with that game selected. **B** selects the folder you came
   from.
+- **Favorites.** Mark games on their page; the Favorites screen in the main
+  menu lists them by name.
 - **Jump by letter.** **Left / Right** in the SD card browser go to the
   previous / next first letter.
 - **Save backups.** Before a game starts, its save is copied to

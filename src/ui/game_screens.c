@@ -63,6 +63,7 @@ typedef enum {
     OPT_NOR,
     OPT_NOR_HOOKS,
     OPT_SAVE_TYPE,
+    OPT_FAVORITE,
     OPT_CHEATS,
     OPT_RESTORE,
     OPT_DELETE,
@@ -76,10 +77,11 @@ typedef struct {
     save_choice_t save_choice;
     bool detected;             /**< detected_mode holds a cached scan result. */
     save_mode_t detected_mode; /**< Save type found by scanning the game. */
+    bool favorite;             /**< In the favorites list. */
     bool has_cheats;
     char cheat_path[PATH_MAX_LEN];
     unsigned cheats_selected;
-    option_t options[8];
+    option_t options[10];
     unsigned option_count;
 } game_page_t;
 
@@ -105,6 +107,10 @@ static void game_row(void *ctx, unsigned index, ui_row_t *row)
     case OPT_SAVE_TYPE:
         text_copy(row->label, sizeof(row->label), "Save");
         text_copy(row->value, sizeof(row->value), save_choice_name(page->save_choice));
+        break;
+    case OPT_FAVORITE:
+        text_copy(row->label, sizeof(row->label), "Favorite");
+        text_copy(row->value, sizeof(row->value), page->favorite ? "Yes" : "No");
         break;
     case OPT_CHEATS:
         text_copy(row->label, sizeof(row->label), "Cheats");
@@ -143,6 +149,9 @@ static void game_hints(const game_page_t *page, const ui_list_t *list)
         break;
     case OPT_SAVE_TYPE:
         ui_hints("<> Change|B Back");
+        break;
+    case OPT_FAVORITE:
+        ui_hints("A Change|B Back");
         break;
     case OPT_CHEATS:
         ui_hints("A Choose|B Back");
@@ -206,6 +215,26 @@ static void start(game_page_t *page, boot_action_t action, bool bios_boot)
         save_detected_read(page->name, page->info.game_code, page->info.size, &page->detected_mode);
 }
 
+/** The favorites list lives in the scratch buffer while it is changed. */
+#define FAVORITES ((favorites_t *)g_scratch)
+_Static_assert(sizeof(favorites_t) <= SCRATCH_SIZE, "favorites must fit the scratch buffer");
+
+static void toggle_favorite(game_page_t *page)
+{
+    favorites_file_load(FAVORITES);
+    if (page->favorite) {
+        favorites_remove(FAVORITES, page->path);
+    } else if (!favorites_add(FAVORITES, page->path)) {
+        ui_message("Favorites Full", "Up to 64 games can be favorites. Remove one first.");
+        return;
+    }
+    if (favorites_file_save(FAVORITES)) {
+        page->favorite = !page->favorite;
+    } else {
+        ui_message("Can't Save", "The favorites could not be written to the SD card.");
+    }
+}
+
 static void explain_add_ons(void)
 {
     ui_message("Add-ons Are Off",
@@ -226,6 +255,8 @@ void ui_game_page(app_t *app, const char *path)
     page.save_choice = save_choice_read(page.name);
     page.detected =
         save_detected_read(page.name, page.info.game_code, page.info.size, &page.detected_mode);
+    favorites_file_load(FAVORITES);
+    page.favorite = favorites_find(FAVORITES, path) >= 0;
     g_cheat_code_count = 0;
     page.has_cheats =
         app->settings.cheats && cheat_file_find(path, page.cheat_path, sizeof(page.cheat_path));
@@ -235,6 +266,7 @@ void ui_game_page(app_t *app, const char *path)
     page.options[page.option_count++] = OPT_NOR;
     page.options[page.option_count++] = OPT_NOR_HOOKS;
     page.options[page.option_count++] = OPT_SAVE_TYPE;
+    page.options[page.option_count++] = OPT_FAVORITE;
     if (page.has_cheats) {
         page.options[page.option_count++] = OPT_CHEATS;
     }
@@ -299,6 +331,9 @@ void ui_game_page(app_t *app, const char *path)
             break;
         case OPT_SAVE_TYPE:
             continue; /* changed with left / right */
+        case OPT_FAVORITE:
+            toggle_favorite(&page);
+            break;
         case OPT_CHEATS:
             page.cheats_selected = ui_cheats(page.cheat_path);
             break;

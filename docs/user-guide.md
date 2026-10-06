@@ -51,6 +51,7 @@ The clock in the top-right corner is the cartridge's real-time clock.
 ```
 Main menu
 ├── SD Card ────── folders ─── Game page ─── Cheats
+├── Favorites ──────────────── Game page
 ├── NOR Flash ──── Game page (NOR)
 ├── Recently Played ────────── Game page
 ├── Settings ───── Date & Time, Sleep / Menu hotkeys
@@ -98,9 +99,16 @@ below it, and the options on the right:
 | **Copy to NOR** | Write the game into NOR flash, see [NOR flash](#nor-flash). |
 | **NOR + add-ons** | The same, with the add-ons built in. |
 | **Save** | Use **Left / Right** to override the detected save type. |
+| **Favorite** | **A** adds the game to Favorites or removes it. |
 | **Cheats** | Only shown when cheats are enabled and a cheat file was found. |
 | **Restore save** | Only shown when there is a backup: go back to the save from before the last start, see [Save backups](#save-backups). |
 | **Delete** | Delete the game file from the SD card. Its save file is kept. |
+
+### Favorites
+
+Games you marked with **Favorite** on their game page, sorted by name; up to
+64. Open it from the main menu. The list is stored in
+`/SAVER/Favorites.txt`.
 
 ### Recently played
 

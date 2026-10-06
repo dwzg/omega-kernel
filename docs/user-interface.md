@@ -63,7 +63,7 @@ heading (small grey, not selectable) and check (shows a check mark).
 
 | File | Screens |
 | --- | --- |
-| `menu_screens.c` | Main menu, SD card browser, recently played |
+| `menu_screens.c` | Main menu, SD card browser, favorites, recently played |
 | `game_screens.c` | Game page, cheat selection |
 | `nor_screens.c` | NOR library, NOR game page, erase |
 | `settings_screens.c` | Settings, hotkey and clock editors, About |

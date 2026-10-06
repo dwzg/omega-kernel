@@ -11,6 +11,7 @@
 #include <stdint.h>
 
 #include "core/cheat.h"
+#include "core/favorites.h"
 #include "core/recent.h"
 #include "ff.h"
 
@@ -23,6 +24,12 @@ void recent_file_load(recent_list_t *list);
 
 /** @brief Write the list back to `/SAVER/Recently play.txt`. */
 bool recent_file_save(const recent_list_t *list);
+
+/** @brief Load `/SAVER/Favorites.txt`. */
+void favorites_file_load(favorites_t *list);
+
+/** @brief Write the list back to `/SAVER/Favorites.txt`. */
+bool favorites_file_save(const favorites_t *list);
 
 /**
  * @brief Find the cheat file for a game: `/CHEAT/<name>.cht`, or the shared

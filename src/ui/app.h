@@ -58,6 +58,7 @@ void ui_run(app_t *app) __attribute__((noreturn));
 void ui_main_menu(app_t *app) __attribute__((noreturn));
 void ui_sd_browser(app_t *app);
 void ui_recent(app_t *app);
+void ui_favorites(app_t *app);
 void ui_nor_library(app_t *app);
 void ui_settings(app_t *app);
 void ui_about(app_t *app);

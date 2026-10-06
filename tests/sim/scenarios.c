@@ -672,6 +672,9 @@ static void check_save_backup(void)
     EXPECT(save_backup_exists("Metroid Fusion.gba"));
     EXPECT(first_byte(FUSION_BAK) == 0x11);
 
+    EXPECT(save_file_backup("Metroid Fusion.gba")); /* unchanged: kept as is */
+    EXPECT(first_byte(FUSION_BAK) == 0x11);
+
     write_filled(FUSION_SAV, 0x22, 0x20000); /* the game played on */
     EXPECT(save_backup_restore("Metroid Fusion.gba"));
     EXPECT(first_byte(FUSION_SAV) == 0x11 && first_byte(FUSION_BAK) == 0x22);

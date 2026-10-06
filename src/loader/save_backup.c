@@ -4,6 +4,8 @@
  */
 #include "loader/save_files.h"
 
+#include <string.h>
+
 #include "core/path.h"
 #include "ff.h"
 #include "loader/buffers.h"
@@ -21,6 +23,31 @@ static uint32_t file_size(const char *path)
 static bool backup_path(char *dst, size_t size, const char *game_filename)
 {
     return sd_companion_path(dst, size, SD_DIR_SAVES, game_filename, "bak");
+}
+
+/** Whether the file at @p path holds the @p size bytes in ::g_scratch. */
+static bool same_contents(const char *path, uint32_t size)
+{
+    FIL file;
+    uint8_t block[512];
+    UINT read;
+    bool same = false;
+
+    if (file_size(path) != size || f_open(&file, path, FA_READ) != FR_OK) {
+        return false;
+    }
+    for (uint32_t done = 0;; done += read) {
+        if (done == size) {
+            same = true;
+            break;
+        }
+        if (f_read(&file, block, sizeof(block), &read) != FR_OK || read == 0 ||
+            memcmp(block, g_scratch + done, read) != 0) {
+            break;
+        }
+    }
+    f_close(&file);
+    return same;
 }
 
 bool save_file_backup(const char *game_filename)
@@ -50,8 +77,13 @@ bool save_file_backup(const char *game_filename)
         return false;
     }
 
-    if (!backup_path(path, sizeof(path), game_filename) ||
-        f_open(&file, path, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) {
+    if (!backup_path(path, sizeof(path), game_filename)) {
+        return false;
+    }
+    if (same_contents(path, size)) {
+        return true; /* nothing played since: reading is cheaper than writing */
+    }
+    if (f_open(&file, path, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) {
         return false;
     }
     ok = f_write(&file, g_scratch, size, &done) == FR_OK && done == size;

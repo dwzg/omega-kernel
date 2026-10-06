@@ -65,7 +65,9 @@ the main menu.
 
 <img src="images/sd-root.png" width="360" alt="SD card browser">
 
-Folders come first, then games, each sorted by name. Only `.gba` files are
+Folders come first, then games, each sorted by name. Numbers are sorted by
+value ("Mega Man 2" before "Mega Man 10"), and accented letters sort with
+their base letter ("Égypte" next to "Egypt"), ignoring case. Only `.gba` files are
 listed. Hidden and system files are left out, as are the `._` files macOS
 leaves on cards. The title bar shows the folder name and your position in the
 list. Names too long for the screen scroll when selected. **B** in the top

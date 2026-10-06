@@ -74,3 +74,81 @@ char *text_format_size(char *dst, size_t size, uint32_t bytes)
     }
     return dst;
 }
+
+/* Base letters of U+00C0..U+017F; 0 = not a letter (x, /). Generated from
+ * the Unicode decompositions. */
+static const char FOLD_LATIN[] = "aaaaaaaceeeeiiiidnooooo\0ouuuuyts" /* U+00C0 */
+                                 "aaaaaaaceeeeiiiidnooooo\0ouuuuyty" /* U+00E0 */
+                                 "aaaaaaccccccccddddeeeeeeeeeegggg"  /* U+0100 */
+                                 "gggghhhhiiiiiiiiiiiijjkkklllllll"  /* U+0120 */
+                                 "lllnnnnnnnnnoooooooorrrrrrssssss"  /* U+0140 */
+                                 "ssttttttuuuuuuuuuuuuwwyyyzzzzzzs"; /* U+0160 */
+
+uint32_t text_fold(uint32_t c)
+{
+    if (c >= 'A' && c <= 'Z') {
+        return c + ('a' - 'A');
+    }
+    if (c >= 0xC0 && c < 0x180 && FOLD_LATIN[c - 0xC0]) {
+        return (uint32_t)FOLD_LATIN[c - 0xC0];
+    }
+    return c;
+}
+
+static bool is_digit(char c)
+{
+    return c >= '0' && c <= '9';
+}
+
+/** Compare the digit runs at *a and *b by value, and step over them. */
+static int compare_numbers(const char **a, const char **b)
+{
+    while (**a == '0') {
+        (*a)++;
+    }
+    while (**b == '0') {
+        (*b)++;
+    }
+    const char *da = *a;
+    const char *db = *b;
+    while (is_digit(**a)) {
+        (*a)++;
+    }
+    while (is_digit(**b)) {
+        (*b)++;
+    }
+    size_t la = (size_t)(*a - da);
+    size_t lb = (size_t)(*b - db);
+    if (la != lb) {
+        return la < lb ? -1 : 1; /* more digits: a larger number */
+    }
+    for (size_t i = 0; i < la; i++) {
+        if (da[i] != db[i]) {
+            return da[i] < db[i] ? -1 : 1;
+        }
+    }
+    return 0;
+}
+
+int text_compare_names(const char *a, const char *b)
+{
+    const char *pa = a;
+    const char *pb = b;
+    for (;;) {
+        if (is_digit(*pa) && is_digit(*pb)) {
+            int r = compare_numbers(&pa, &pb);
+            if (r) {
+                return r;
+            }
+            continue;
+        }
+        uint32_t ca = text_fold(utf8_next(&pa));
+        uint32_t cb = text_fold(utf8_next(&pb));
+        if (ca != cb) {
+            return ca < cb ? -1 : 1;
+        }
+        if (ca == 0) {
+            return strcmp(a, b);
+        }
+    }
+}

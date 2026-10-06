@@ -22,6 +22,11 @@ All notable changes to this project are documented here. The format follows
   Cyrillic and Japanese kana are shown instead of `?`. Names too long to keep
   are shortened in the list; their saves keep the full name.
 
+### Changed
+
+- Folders are sorted the way people expect: numbers by value ("Mega Man 2"
+  before "Mega Man 10") and accented letters with their base letter.
+
 ### Fixed
 
 - Gauntlet: Dark Legacy (AYGE) uses 512 B EEPROM, not 8 KB, so it saves again.

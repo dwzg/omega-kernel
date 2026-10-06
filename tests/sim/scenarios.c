@@ -652,6 +652,32 @@ static void setup_save_backup(void)
     write_filled(FUSION_BAK, 0x11, 0x8000);
 }
 
+/** Folders sort numbers by value and accented letters with their base letter. */
+static void check_natural_order(void)
+{
+    static const char *const created[] = {
+        "Zelda.gba", "Mega Man 10.gba", "\xC3\x89gypte.gba", "Mega Man 2.gba", "egypt.gba",
+    };
+    static const char *const sorted[] = {
+        "egypt.gba", "\xC3\x89gypte.gba", "Mega Man 2.gba", "Mega Man 10.gba", "Zelda.gba",
+    };
+    char path[PATH_MAX_LEN];
+    dir_listing_t listing;
+    FIL f;
+
+    fresh_card();
+    EXPECT(f_mkdir("/Sort") == FR_OK);
+    for (unsigned i = 0; i < 5; i++) {
+        EXPECT(path_join(path, sizeof(path), "/Sort", created[i]));
+        EXPECT(f_open(&f, path, FA_WRITE | FA_CREATE_NEW) == FR_OK);
+        f_close(&f);
+    }
+    EXPECT(directory_read("/Sort", &listing) && listing.files == 5);
+    for (unsigned i = 0; i < listing.files && i < 5; i++) {
+        EXPECT(strcmp(directory_entry(i)->name, sorted[i]) == 0);
+    }
+}
+
 /** Root listing: folders first, then games, both sorted; other files hidden. */
 static void check_root_listing(void)
 {
@@ -732,6 +758,7 @@ int main(int argc, char **argv)
     check_world_names();
     check_save_detection();
     check_save_backup();
+    check_natural_order();
     check_root_listing();
 
     memset(cheats_on, 0xFF, sizeof(cheats_on));

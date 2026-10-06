@@ -25,6 +25,22 @@ void text_trim_right(char *s);
 bool text_ends_with_ci(const char *s, const char *suffix);
 
 /**
+ * @brief The character @p c is sorted as: letters in lower case, accented
+ * Latin letters as their base letter ('É' -> 'e', 'ß' -> 's').
+ */
+uint32_t text_fold(uint32_t c);
+
+/**
+ * @brief Compare two UTF-8 names the way people expect a list to be sorted.
+ *
+ * Case and accents are ignored (see text_fold()), and runs of digits are
+ * compared by value, so "Game 2" comes before "Game 10". Names that are equal
+ * that way are ordered byte by byte, so the order is always the same.
+ * @return <0, 0 or >0 like strcmp().
+ */
+int text_compare_names(const char *a, const char *b);
+
+/**
  * @brief Parse up to 8 hexadecimal digits.
  *
  * Characters that are not hex digits are skipped. Strings longer than 8

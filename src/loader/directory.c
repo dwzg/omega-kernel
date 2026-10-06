@@ -6,7 +6,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <strings.h>
 
 #include "core/game_file.h"
 #include "core/text.h"
@@ -21,7 +20,7 @@ static dir_listing_t s_listing;
 
 static int compare_names(const void *a, const void *b)
 {
-    return strcasecmp(((const dir_entry_t *)a)->name, ((const dir_entry_t *)b)->name);
+    return text_compare_names(((const dir_entry_t *)a)->name, ((const dir_entry_t *)b)->name);
 }
 
 static bool is_listed(const FILINFO *info)

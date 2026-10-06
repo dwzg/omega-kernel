@@ -36,7 +36,7 @@ GAMES = [
     # Names beyond ASCII: shown with their accents and kana; a name too long
     # for the browser is opened through its 8.3 short name.
     ("GBA/World/Pokémon - Version Émeraude.gba", "POKEMON EMER", "BPEF", 1 << 20),
-    ("GBA/World/ポケットモンスター エメラルド.gba", "POKEMON EMER", "BPEJ", 1 << 20),
+    ("GBA/World/ポケットモンスター エメラルド (日本).gba", "POKEMON EMER", "BPEJ", 1 << 20),
     ("GBA/World/Jeux Français/Astérix & Obélix XXL.gba", "ASTERIX", "BLXP", 1 << 20),
     ("GBA/World/ファイナルファンタジータクティクスアドバンス (Japan) (Rev 1) (Translated) [v1.2].gba",
      "FFTA", "AFXJ", 1 << 20),

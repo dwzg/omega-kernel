@@ -81,8 +81,8 @@ the start of the letter (or the one before); all names starting with a
 digit count as one letter.
 
 File names with accents (`Pokémon - Version Émeraude`), Greek, Cyrillic and
-Japanese kana are shown as they are; other characters, such as kanji, are
-shown as `?`.
+Japanese (kana and the common kanji) are shown as they are; other characters,
+such as Korean or rare Chinese characters, are shown as `?`.
 
 ### Game page
 

@@ -4,16 +4,19 @@
 The kernel uses pixel fonts: every pixel of a glyph is either on or off, so
 text is sharp on the GBA screen. The sources are BDF files (a plain text
 bitmap format) in assets/fonts/src/; this script packs the characters the
-kernel can show (RANGES) into the compact "OFN2" format it reads in place.
+kernel can show (RANGES, and CJK_RANGES for fonts marked +cjk) into the
+compact "OFN3" format it reads in place.
 
 File format (little-endian), see src/gfx/font.c:
 
     offset  size  field
-    0       4     magic "OFN2"
+    0       4     magic "OFN3"
     4       1     line height in pixels
     5       1     ascent (baseline position from the top of a line)
     6       2     number of ranges R
-    8       8*R   ranges: u32 first code point, u16 count, u16 reserved
+    8       8*R   ranges, sorted: runs of consecutive code points the font has
+                    u32 first code point, u16 count,
+                    u16 index of the run's first glyph record
     ...     12*n  glyph records, for every code point of every range:
                     u32 bitmap offset (from the start of the bitmap area)
                     u8  width, u8 height
@@ -23,7 +26,8 @@ File format (little-endian), see src/gfx/font.c:
                   most significant bit = leftmost pixel
 
 A character missing from a font is taken from its fallback font (if one is
-given in fonts.txt), otherwise it is drawn as '?'.
+given in fonts.txt). The kernel itself can also fall back to another font at
+run time (the title font uses the body font's kanji), otherwise it draws '?'.
 
 Usage:
     make_font.py --all [--check]       regenerate (or verify) every font in
@@ -55,9 +59,16 @@ RANGES = [
     (0xFF01, 0xFF5E),  # full-width ASCII
 ]
 
+# Kanji and the rest of the CJK punctuation, for fonts marked +cjk.
+CJK_RANGES = [
+    (0x3004, 0x303F),  # CJK symbols (々, 〜, brackets)
+    (0x4E00, 0x9FFF),  # CJK Unified Ideographs (Galmuri has the JIS kanji)
+]
 
-def wanted(code):
-    return any(first <= code <= last for first, last in RANGES)
+
+def wanted(code, cjk=True):
+    ranges = RANGES + (CJK_RANGES if cjk else [])
+    return any(first <= code <= last for first, last in ranges)
 
 
 def read_bdf(path):
@@ -110,7 +121,7 @@ def pack_rows(rows, w, h):
     return out
 
 
-def convert(path, fallback_path=None):
+def convert(path, fallback_path=None, cjk=False):
     ascent, descent, glyphs = read_bdf(path)
     fallback = {}
     if fallback_path:
@@ -118,31 +129,32 @@ def convert(path, fallback_path=None):
         if (f_ascent, f_descent) != (ascent, descent):
             sys.exit(f'{fallback_path}: metrics differ from {path}')
 
-    bitmaps = bytearray()
-    placed = {}  # code -> record, so '?' can be reused
+    codes = sorted(c for c in set(glyphs) | set(fallback) if wanted(c, cjk))
+    if ord('?') not in glyphs:
+        sys.exit(f"{path}: no '?' glyph")
 
-    def place(source):
-        advance, (w, h, xoff, yoff), rows = source
+    runs = []  # [first, count, base]
+    for i, code in enumerate(codes):
+        if runs and runs[-1][0] + runs[-1][1] == code:
+            runs[-1][1] += 1
+        else:
+            runs.append([code, 1, i])
+    if len(codes) > 0xFFFF:
+        sys.exit(f'{path}: too many glyphs')
+
+    bitmaps = bytearray()
+    records = []
+    for code in codes:
+        advance, (w, h, xoff, yoff), rows = glyphs.get(code) or fallback[code]
         offset = len(bitmaps)
         bitmaps.extend(pack_rows(rows, w, h))
         # BDF offsets are from the baseline (y up); ours from the line top.
-        return (offset, w, h, xoff, ascent - (h + yoff), advance)
+        records.append((offset, w, h, xoff, ascent - (h + yoff), advance))
 
-    question = place(glyphs[ord('?')])
-    records = []
-    for first, last in RANGES:
-        for code in range(first, last + 1):
-            if code in glyphs:
-                records.append(place(glyphs[code]))
-            elif code in fallback:
-                records.append(place(fallback[code]))
-            else:
-                records.append(question)
-
-    out = bytearray(b'OFN2')
-    out += struct.pack('<BBH', ascent + descent, ascent, len(RANGES))
-    for first, last in RANGES:
-        out += struct.pack('<IHH', first, last - first + 1, 0)
+    out = bytearray(b'OFN3')
+    out += struct.pack('<BBH', ascent + descent, ascent, len(runs))
+    for first, count, base in runs:
+        out += struct.pack('<IHH', first, count, base)
     for offset, w, h, xo, yo, adv in records:
         out += struct.pack('<IBBbbB3x', offset, w, h, xo, yo, adv)
     out += bitmaps
@@ -175,13 +187,15 @@ def subset(src, dst):
 
 
 def read_manifest():
-    """Lines of fonts.txt: output-name source.bdf [fallback.bdf]."""
+    """Lines of fonts.txt: output-name source.bdf [fallback.bdf] [+cjk]."""
     entries = []
     with open(os.path.join(FONT_DIR, 'fonts.txt')) as f:
         for line in f:
-            line = line.split('#', 1)[0].split()
-            if line:
-                entries.append((line[0], line[1], line[2] if len(line) > 2 else None))
+            words = line.split('#', 1)[0].split()
+            if words:
+                files = [w for w in words[1:] if not w.startswith('+')]
+                entries.append((words[0], files[0], files[1] if len(files) > 1 else None,
+                                '+cjk' in words))
     return entries
 
 
@@ -201,8 +215,8 @@ def main():
 
     stale = []
     src = os.path.join(FONT_DIR, 'src')
-    for name, source, fallback in read_manifest():
-        data = convert(os.path.join(src, source), fallback and os.path.join(src, fallback))
+    for name, source, fallback, cjk in read_manifest():
+        data = convert(os.path.join(src, source), fallback and os.path.join(src, fallback), cjk)
         target = os.path.join(FONT_DIR, name + '.bin')
         if args.check:
             if not os.path.exists(target) or open(target, 'rb').read() != data:

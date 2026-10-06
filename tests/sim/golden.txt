@@ -56,9 +56,9 @@ settings_hotkey_saved            e9ce28cd
 datetime_editor                  cf758624
 datetime_editor_changed          6aa4fcd2
 settings_after_datetime          8f1ca3d8
-names_resume_kana                391a6390
-names_kana_game_page             bc9ec395
-names_long_name_selected         5db247d1
+names_resume_kana                044df9d5
+names_kana_game_page             6e3ccce0
+names_long_name_selected         86295da1
 names_long_name_game_page        0b17eb8a
 names_accented_game_page         77f925f1
 names_accented_folder            f79edebc

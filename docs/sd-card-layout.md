@@ -29,7 +29,7 @@ name in different folders therefore share their save.
 
 Paths are limited to 255 characters. File names may be long names in any
 language. The kernel shows Latin letters with accents, Greek, Cyrillic and
-Japanese kana; other characters (such as kanji) are shown as `?`. A name that would
+Japanese (kana and about 6,400 kanji); other characters are shown as `?`. A name that would
 make the whole path longer than 255 bytes is opened through its 8.3 short
 name, but its save and other files still use the full name.
 

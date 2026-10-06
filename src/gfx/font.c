@@ -32,33 +32,40 @@ int font_ascent(const font_t *font)
 /** Record index of @p c, or -1 if the font has no such character. */
 static int glyph_index(const uint8_t *d, uint32_t c)
 {
-    unsigned ranges = read16(d + 6);
-    unsigned base = 0;
-    for (unsigned i = 0; i < ranges; i++) {
-        const uint8_t *r = d + HEADER_SIZE + i * RANGE_SIZE;
+    unsigned lo = 0;
+    unsigned hi = read16(d + 6);
+    while (lo < hi) {
+        unsigned mid = (lo + hi) / 2;
+        const uint8_t *r = d + HEADER_SIZE + mid * RANGE_SIZE;
         uint32_t first = read32(r);
-        unsigned count = read16(r + 4);
-        if (c >= first && c - first < count) {
-            return (int)(base + (c - first));
+        if (c < first) {
+            hi = mid;
+        } else if (c - first < read16(r + 4)) {
+            return (int)(read16(r + 6) + (c - first));
+        } else {
+            lo = mid + 1;
         }
-        base += count;
     }
     return -1;
 }
 
 void font_glyph(const font_t *font, uint32_t c, glyph_t *out)
 {
-    const uint8_t *d = font->data;
-    unsigned ranges = read16(d + 6);
-    unsigned total = 0;
-    for (unsigned i = 0; i < ranges; i++) {
-        total += read16(d + HEADER_SIZE + i * RANGE_SIZE + 4);
+    const font_t *f = font;
+    int index = glyph_index(f->data, c);
+    if (index < 0 && font->fallback) {
+        f = font->fallback;
+        index = glyph_index(f->data, c);
+    }
+    if (index < 0) {
+        f = font;
+        index = glyph_index(f->data, '?');
     }
 
-    int index = glyph_index(d, c);
-    if (index < 0) {
-        index = glyph_index(d, '?');
-    }
+    const uint8_t *d = f->data;
+    unsigned ranges = read16(d + 6);
+    const uint8_t *last = d + HEADER_SIZE + (ranges - 1) * RANGE_SIZE;
+    unsigned total = read16(last + 6) + read16(last + 4);
     const uint8_t *records = d + HEADER_SIZE + ranges * RANGE_SIZE;
     const uint8_t *rec = records + index * RECORD_SIZE;
     const uint8_t *bitmaps = records + total * RECORD_SIZE;

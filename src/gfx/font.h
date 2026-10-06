@@ -10,9 +10,10 @@
 
 #include <stdint.h>
 
-/** A font in the "OFN2" format. */
-typedef struct {
+/** A font in the "OFN3" format. */
+typedef struct font {
     const uint8_t *data;
+    const struct font *fallback; /**< Asked for characters this font lacks, or NULL. */
 } font_t;
 
 /** One glyph record. */
@@ -33,13 +34,14 @@ int font_ascent(const font_t *font);
 
 /**
  * @brief Look up the glyph for Unicode code point @p c. Characters the font
- * lacks are shown as '?'.
+ * lacks are taken from its fallback font, or else shown as '?'.
  */
 void font_glyph(const font_t *font, uint32_t c, glyph_t *out);
 
 /** The three fonts of the user interface. */
 extern const font_t FONT_BODY;  /**< List rows and normal text (Galmuri11). */
 extern const font_t FONT_SMALL; /**< Secondary text and button hints (Galmuri9). */
-extern const font_t FONT_TITLE; /**< Title bar and headings (Galmuri11 Bold). */
+extern const font_t
+    FONT_TITLE; /**< Title bar and headings (Galmuri11 Bold; kanji from FONT_BODY). */
 
 #endif /* GFX_FONT_H */

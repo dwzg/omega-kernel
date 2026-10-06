@@ -30,7 +30,7 @@ TEST(font_unknown_characters_use_question_mark)
     glyph_t q;
     glyph_t g;
     font_glyph(&FONT_BODY, '?', &q);
-    font_glyph(&FONT_BODY, 0x4E00, &g); /* not in the font */
+    font_glyph(&FONT_BODY, 0xAC00, &g); /* Hangul: not in the font */
     CHECK(q.bitmap == g.bitmap);
     CHECK(q.advance > 0);
 }
@@ -68,8 +68,27 @@ TEST(font_has_accents_and_kana)
     CHECK(g.advance >= 10);
     font_glyph(&FONT_TITLE, 0x30DD, &g); /* taken from the regular font */
     CHECK(g.bitmap != q.bitmap);
-    font_glyph(&FONT_BODY, 0x4E00, &g); /* CJK ideographs are not included */
+    font_glyph(&FONT_BODY, 0xAC00, &g); /* Hangul is not included */
     CHECK(g.bitmap == q.bitmap);
+}
+
+TEST(fonts_have_kanji)
+{
+    glyph_t q;
+    glyph_t body;
+    glyph_t g;
+    font_glyph(&FONT_BODY, '?', &q);
+    font_glyph(&FONT_BODY, 0x65E5, &body); /* 日 */
+    CHECK(body.bitmap != q.bitmap);
+    CHECK(body.width >= 8);
+    font_glyph(&FONT_TITLE, 0x65E5, &g); /* the title font borrows the body's */
+    CHECK(g.bitmap == body.bitmap);
+    font_glyph(&FONT_SMALL, 0x65E5, &g);
+    font_glyph(&FONT_SMALL, '?', &q);
+    CHECK(g.bitmap != q.bitmap);
+    font_glyph(&FONT_BODY, 0x3005, &g); /* 々 */
+    font_glyph(&FONT_BODY, '?', &q);
+    CHECK(g.bitmap != q.bitmap);
 }
 
 TEST(text_width_counts_characters_not_bytes)
@@ -141,6 +160,7 @@ SUITE(gfx)
     RUN(text_width_adds_advances);
     RUN(text_fit_adds_ellipsis);
     RUN(font_has_accents_and_kana);
+    RUN(fonts_have_kanji);
     RUN(text_width_counts_characters_not_bytes);
     RUN(text_fit_cuts_between_characters);
     RUN(text_draws_inside_bounds);

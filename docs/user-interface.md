@@ -104,11 +104,14 @@ python3 tools/make_font.py --all          # regenerate
 python3 tools/make_font.py --all --check  # what CI runs
 ```
 
-The format ("OFN2") is documented at the top of the script. Fonts cover
+The format ("OFN3") is documented at the top of the script. Fonts cover
 ASCII, Latin-1 and Latin Extended-A (accented letters), Greek, Cyrillic,
 common punctuation, Japanese kana and full-width ASCII (`RANGES` in the
-script); the bold title font takes characters it lacks from Galmuri11.
-Other characters are drawn as `?`. To add a range, extend `RANGES`, subset
+script). The body and small fonts also have the kanji Galmuri provides (the
+JIS sets, `CJK_RANGES`); the bold title font has none and borrows them from
+the body font at run time (`font_t.fallback`). Only the characters a font
+has are stored, as runs found by binary search. Other characters are drawn
+as `?`. To add a range, extend `RANGES`, subset
 the full Galmuri BDF files again with `--subset` and run `--all`.
 
 ## Changing the interface

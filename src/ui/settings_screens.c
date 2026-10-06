@@ -219,6 +219,7 @@ typedef enum {
     SET_DATETIME,
     SET_GAME_RTC,
     SET_FAST_PATCH,
+    SET_LIST_ART,
     SET_COUNT
 } setting_item_t;
 
@@ -279,9 +280,13 @@ static void settings_row(void *ctx, unsigned index, ui_row_t *row)
         text_copy(row->label, sizeof(row->label), "Clock for games");
         text_copy(row->value, sizeof(row->value), s->game_rtc ? "On" : "Off");
         break;
-    default:
+    case SET_FAST_PATCH:
         text_copy(row->label, sizeof(row->label), "Fast patching");
         text_copy(row->value, sizeof(row->value), s->fast_patch ? "On" : "Off");
+        break;
+    default:
+        text_copy(row->label, sizeof(row->label), "Box art in list");
+        text_copy(row->value, sizeof(row->value), s->list_art ? "On" : "Off");
         break;
     }
 }
@@ -295,6 +300,7 @@ static bool is_toggle(setting_item_t item)
     case SET_CHEATS:
     case SET_GAME_RTC:
     case SET_FAST_PATCH:
+    case SET_LIST_ART:
         return true;
     default:
         return false;
@@ -363,6 +369,9 @@ void ui_settings(app_t *app)
                 break;
             case SET_FAST_PATCH:
                 s->fast_patch = !s->fast_patch;
+                break;
+            case SET_LIST_ART:
+                s->list_art = !s->list_art;
                 break;
             case SET_SLEEP_KEYS:
                 ui_edit_hotkey(state_only ? "Save State Hotkey" : "Sleep Hotkey",

@@ -74,6 +74,12 @@ leaves on cards. The title bar shows the folder name and your position in the
 list. Names too long for the screen scroll when selected. **B** in the top
 folder opens the main menu.
 
+With **Settings → Box art in list** on, the list takes the left part of the
+screen and the box art of the selected game (at half size), its game code
+and size appear on the right once the selection rests for a moment.
+
+<img src="images/sd-box-art.png" width="360" alt="SD card browser with box art">
+
 The browser remembers where you were in each folder while the GBA is on.
 Going up with **B** selects the folder you came from. In long folders,
 **Right** jumps to the first game of the next letter and **Left** back to
@@ -257,6 +263,7 @@ the settings of that moment.
 | Date & Time | | Sets the cartridge clock |
 | Clock for games | on | Lets games with a clock (Pokémon, Boktai, ...) read it |
 | Fast patching | on | Use the built-in database of patch locations |
+| Box art in list | off | Show the box art of the selected game next to the SD card list |
 
 Settings are saved in the cartridge when you leave the Settings screen.
 

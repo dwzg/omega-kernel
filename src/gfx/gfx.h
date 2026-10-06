@@ -64,6 +64,12 @@ void gfx_offscreen_present(void);
 /** @brief Move screen rows [@p y, @p y + @p rows) by @p dy rows (fast scrolling). */
 void gfx_move_rows(int y, int rows, int dy);
 
+/**
+ * @brief Move the part [@p x, @p x + @p width) of screen rows [@p y, @p y +
+ * @p rows) by @p dy rows. @p x and @p width must be even.
+ */
+void gfx_move_area(int x, int width, int y, int rows, int dy);
+
 /** @brief Fill a rectangle (clipped to the screen). */
 void gfx_fill(int x, int y, int w, int h, uint16_t color);
 

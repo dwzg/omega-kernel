@@ -386,9 +386,9 @@ static void scroll_rows(ui_list_t *list, int delta, unsigned old_selected)
     int keep = visible - (delta > 0 ? delta : -delta);
 
     if (delta > 0) {
-        gfx_move_rows(list->top + delta * h, keep * h, -delta * h);
+        gfx_move_area(list->left, list->width, list->top + delta * h, keep * h, -delta * h);
     } else {
-        gfx_move_rows(list->top, keep * h, -delta * h);
+        gfx_move_area(list->left, list->width, list->top, keep * h, -delta * h);
     }
     unsigned first_new = delta > 0 ? list->view.top + (unsigned)keep : list->view.top;
     for (unsigned i = 0; i < (unsigned)(visible - keep); i++) {
@@ -410,11 +410,11 @@ static void show_move(ui_list_t *list, unsigned old_selected, unsigned old_top)
     list->marquee_offset = 0;
     int delta = (int)list->view.top - (int)old_top;
     int limit = (int)list->view.visible;
-    bool full_width = list->left == 0 && list->width == GFX_WIDTH;
+    bool movable = ((list->left | list->width) & 1) == 0; /* see gfx_move_area() */
     if (delta == 0) {
         draw_row(list, old_selected, false);
         draw_row(list, list->view.selected, false);
-    } else if (full_width && delta > -limit && delta < limit &&
+    } else if (movable && delta > -limit && delta < limit &&
                shown_rows(list) == list->view.visible) {
         scroll_rows(list, delta, old_selected);
     } else {

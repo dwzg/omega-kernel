@@ -86,7 +86,7 @@ Lists redraw only what changes, and never show anything half-drawn:
   buffer, `gfx_offscreen_begin()`) and copied to the screen in one go. The
   title bar is built the same way.
 - When a list scrolls by a row, the rows that stay visible are moved
-  (`gfx_move_rows()`) and only the row that comes into view and the two whose
+  (`gfx_move_area()`, also for lists in a column) and only the row that comes into view and the two whose
   selection changed are drawn. The simulator checks that this gives exactly
   the same pixels as a full redraw.
 - A selected name that is too long scrolls by one pixel per frame, resting

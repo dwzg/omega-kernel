@@ -37,6 +37,7 @@ void settings_decode(settings_t *s, const uint16_t words[SETTINGS_WORDS])
     s->fast_patch = decode_bool(words[SETTINGS_WORD_FAST_PATCH], true);
     s->thumbnails = decode_bool(words[SETTINGS_WORD_THUMBNAILS], false);
     s->game_rtc = decode_bool(words[SETTINGS_WORD_GAME_RTC], true);
+    s->list_art = decode_bool(words[SETTINGS_WORD_LIST_ART], false);
     decode_keys(s->sleep_keys, &words[SETTINGS_WORD_SLEEP_KEYS], DEFAULT_SLEEP_KEYS);
     decode_keys(s->menu_keys, &words[SETTINGS_WORD_MENU_KEYS], DEFAULT_MENU_KEYS);
 }
@@ -55,6 +56,7 @@ void settings_encode(const settings_t *s, uint16_t words[SETTINGS_WORDS])
     words[SETTINGS_WORD_FAST_PATCH] = s->fast_patch;
     words[SETTINGS_WORD_THUMBNAILS] = s->thumbnails;
     words[SETTINGS_WORD_GAME_RTC] = s->game_rtc;
+    words[SETTINGS_WORD_LIST_ART] = s->list_art;
 }
 
 bool settings_any_hook(const settings_t *s)

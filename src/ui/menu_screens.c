@@ -10,6 +10,7 @@
 #include "core/text.h"
 #include "loader/buffers.h"
 #include "loader/directory.h"
+#include "loader/game_info.h"
 #include "loader/library_files.h"
 #include "loader/sd_paths.h"
 #include "ui/app.h"
@@ -94,17 +95,65 @@ void ui_main_menu(app_t *app)
 
 /* ---------------------------------------------------------- SD browser -- */
 
+/* Split view (Settings > Box art in list): the list on the left, the box
+ * art of the selected game at half size on the right. */
+#define ART_LIST_WIDTH 144
+#define ART_PANEL_WIDTH (GFX_WIDTH - ART_LIST_WIDTH)
+#define ART_X (ART_LIST_WIDTH + (ART_PANEL_WIDTH - THUMBNAIL_WIDTH / 2) / 2)
+#define ART_Y (CONTENT_TOP + 10)
+/** Frames the selection must rest before the box art is read from the card. */
+#define ART_DELAY 8
+
 static void browser_row(void *ctx, unsigned index, ui_row_t *row)
 {
-    (void)ctx;
+    const app_t *app = ctx;
     if (directory_is_folder(index)) {
         text_copy(row->label, sizeof(row->label), directory_name(index));
         row->kind = ROW_CHEVRON;
     } else {
         display_name(row->label, sizeof(row->label), directory_name(index));
-        text_format_size(row->value, sizeof(row->value), directory_size(index));
+        if (!app->settings.list_art) { /* the panel shows the size */
+            text_format_size(row->value, sizeof(row->value), directory_size(index));
+        }
         row->kind = ROW_PLAIN;
     }
+}
+
+/** Draw the box art panel for entry @p index of the folder @p folder, or
+ * an empty panel if @p index is negative or a folder. */
+static void draw_art_panel(const char *folder, int index)
+{
+    gfx_fill(ART_LIST_WIDTH, CONTENT_TOP, ART_PANEL_WIDTH, CONTENT_HEIGHT, COLOR_BACKGROUND);
+    gfx_fill(ART_LIST_WIDTH, CONTENT_TOP, 1, CONTENT_HEIGHT, COLOR_RULE);
+    if (index < 0 || directory_is_folder((unsigned)index)) {
+        return;
+    }
+
+    char path[PATH_MAX_LEN];
+    game_info_t info;
+    const uint16_t *pixels = NULL;
+    bool known = path_join(path, sizeof(path), folder, directory_open_name((unsigned)index)) &&
+                 game_info_read(path, &info) && info.game_code[0] > ' ';
+    if (known) {
+        pixels = thumbnail_load(info.game_code);
+    }
+
+    int w = THUMBNAIL_WIDTH / 2;
+    int h = THUMBNAIL_HEIGHT / 2;
+    gfx_frame(ART_X - 1, ART_Y - 1, w + 2, h + 2, COLOR_RULE);
+    if (pixels) {
+        gfx_blit_half(ART_X, ART_Y, w, h, pixels, THUMBNAIL_WIDTH);
+    } else {
+        gfx_fill(ART_X, ART_Y, w, h, COLOR_PLACEHOLDER);
+    }
+    char size[16];
+    int y = ART_Y + h + 6;
+    if (known) {
+        gfx_text(&FONT_SMALL, ART_X, y, COLOR_TEXT_MUTED, info.game_code, w, ALIGN_LEFT);
+        y += font_line_height(&FONT_SMALL);
+    }
+    text_format_size(size, sizeof(size), directory_size((unsigned)index));
+    gfx_text(&FONT_SMALL, ART_X, y, COLOR_TEXT_MUTED, size, w, ALIGN_LEFT);
 }
 
 static const char *folder_title(const char *path)
@@ -143,7 +192,11 @@ void ui_sd_browser(app_t *app)
         app_position_t *pos =
             &app->positions[app->depth < APP_MAX_DEPTH ? app->depth : APP_MAX_DEPTH - 1];
 
-        ui_list_init(&list, total, 0, browser_row, NULL, CONTENT_TOP, ROW_HEIGHT);
+        bool art = app->settings.list_art;
+        ui_list_init(&list, total, 0, browser_row, app, CONTENT_TOP, ROW_HEIGHT);
+        if (art) {
+            ui_list_set_column(&list, 0, ART_LIST_WIDTH);
+        }
         list.empty_text = "No games in this folder.";
         if (app->select_name[0]) {
             /* Select the last played game, or the folder we came back from. */
@@ -163,8 +216,13 @@ void ui_sd_browser(app_t *app)
             ui_title_bar(folder_title(app->sd_path), count_text);
             browser_hints(app, &list);
             ui_list_draw(&list);
+            if (art) {
+                draw_art_panel(app->sd_path, -1);
+            }
 
             bool redraw = false;
+            unsigned rest = 0; /* frames the selection has not moved */
+            bool art_shown = false;
             while (!redraw && !reload) {
                 platform_wait_vblank();
                 ui_tick();
@@ -187,6 +245,14 @@ void ui_sd_browser(app_t *app)
                              total);
                     ui_title_bar(folder_title(app->sd_path), count_text);
                     browser_hints(app, &list);
+                    rest = 0;
+                    if (art && art_shown) {
+                        draw_art_panel(app->sd_path, -1); /* the art follows once it rests */
+                        art_shown = false;
+                    }
+                } else if (art && total > 0 && ++rest == ART_DELAY) {
+                    draw_art_panel(app->sd_path, (int)ui_list_selected(&list));
+                    art_shown = true;
                 }
 
                 if (input.pressed & BTN_START) {

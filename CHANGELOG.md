@@ -11,6 +11,8 @@ All notable changes to this project are documented here. The format follows
 - **Start where you left off.** The kernel opens the folder of the game you
   played last, with that game selected. **B** selects the folder you came
   from.
+- **Box art in the list** (Settings, off by default): the SD card browser
+  shows the selected game's box art next to the list.
 - **Favorites.** Mark games on their page; the Favorites screen in the main
   menu lists them by name.
 - **Jump by letter.** **Left / Right** in the SD card browser go to the

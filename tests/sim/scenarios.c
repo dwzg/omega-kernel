@@ -491,6 +491,35 @@ static const sim_step_t FAVORITES[] = {
     END,
 };
 
+/* Settings > Box art in list. */
+static const sim_step_t BROWSE_ART[] = {
+    WAIT(12),
+    SHOT("art_folder"), /* ATTR: no art */
+    DOWN,
+    DOWN,
+    DOWN,
+    DOWN,
+    DOWN,
+    DOWN,
+    DOWN,
+    DOWN,
+    DOWN,
+    DOWN, /* Metroid Fusion, scrolled */
+    WAIT(12),
+    SHOT("art_game"),
+    UP,
+    WAIT(1),
+    SHOT("art_moving"), /* cleared until the selection rests */
+    DOWN,
+    WAIT(12),
+    A,
+    WAIT(2),
+    B,
+    WAIT(12),
+    SHOT("art_game_redrawn"),
+    END,
+};
+
 static const sim_step_t ABOUT[] = {
     B, DOWN, DOWN, DOWN, DOWN, DOWN, A, WAIT(2), SHOT("about"), END,
 };
@@ -955,6 +984,16 @@ int main(int argc, char **argv)
         /* A last played game whose folder is gone: start in the top folder. */
         const golden_t *a = find_actual("resume_missing_folder");
         const golden_t *b = find_actual("sd_root");
+        EXPECT(a && b && a->crc == b->crc);
+    }
+    {
+        uint16_t art_on[SETTINGS_WORDS];
+        memset(art_on, 0xFF, sizeof(art_on));
+        art_on[SETTINGS_WORD_LIST_ART] = 1;
+        run(BROWSE_ART, art_on);
+        /* Scrolling the list column moves rows; that must match a full redraw. */
+        const golden_t *a = find_actual("art_game");
+        const golden_t *b = find_actual("art_game_redrawn");
         EXPECT(a && b && a->crc == b->crc);
     }
     run(LETTER_JUMP, NULL);

@@ -117,6 +117,25 @@ void gfx_move_rows(int y, int rows, int dy)
                (unsigned)(rows * GFX_WIDTH / 2));
 }
 
+void gfx_move_area(int x, int width, int y, int rows, int dy)
+{
+    if (x == 0 && width == GFX_WIDTH) {
+        gfx_move_rows(y, rows, dy);
+        return;
+    }
+    if ((x | width) & 1 || x < 0 || width <= 0 || x + width > GFX_WIDTH || y < 0 || rows <= 0 ||
+        y + rows > GFX_HEIGHT || y + dy < 0 || y + dy + rows > GFX_HEIGHT) {
+        return;
+    }
+    uint16_t *fb = gfx_framebuffer();
+    /* Line by line, in the order that never overwrites a line still to move. */
+    for (int i = 0; i < rows; i++) {
+        int line = dy < 0 ? y + i : y + rows - 1 - i;
+        copy_words((uint32_t *)(fb + (line + dy) * GFX_WIDTH + x),
+                   (const uint32_t *)(fb + line * GFX_WIDTH + x), (unsigned)width / 2);
+    }
+}
+
 /** Clip a rectangle to the target. @return false if nothing is left. */
 static inline __attribute__((always_inline)) bool clip(int *x, int *y, int *w, int *h)
 {

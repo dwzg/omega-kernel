@@ -227,7 +227,8 @@ boot_result_t boot_sd_game(const boot_request_t *req, const settings_t *settings
     if (save_choice_read(name) != req->save_choice) {
         save_choice_write(name, req->save_choice);
     }
-    save_mode_t save_mode = save_type_resolve(req->save_choice, info.game_code, info.size);
+    save_mode_t save_mode =
+        save_mode_for_game(req->save_choice, name, info.game_code, info.size, req->path, progress);
 
     uint32_t save_size;
     r = prepare_save(name, save_mode, starting, &save_size, progress);
@@ -255,8 +256,8 @@ boot_result_t boot_nor_game(unsigned index, bool bios_boot, const settings_t *se
 
     fat_map_reset();
     memcpy(game_code, entry->header_title + 0xC, 4);
-    save_mode_t save_mode =
-        save_type_resolve(save_choice_read(entry->filename), game_code, entry->size);
+    save_mode_t save_mode = save_mode_for_game(save_choice_read(entry->filename), entry->filename,
+                                               game_code, entry->size, NULL, NULL);
 
     boot_result_t r = prepare_save(entry->filename, save_mode, true, &save_size, progress);
     if (r != BOOT_OK) {

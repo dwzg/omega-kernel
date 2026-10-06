@@ -11,6 +11,10 @@ All notable changes to this project are documented here. The format follows
 - **Start where you left off.** The kernel opens the folder of the game you
   played last, with that game selected. **B** selects the folder you came
   from.
+- **Save type detection.** A game missing from the save type list is
+  checked for the name of its save chip the first time it is started, so ROM
+  hacks, prototypes and translations with new game codes save correctly
+  without choosing the type by hand.
 - **File names in other languages.** Accented letters (é, ü, ñ, ...), Greek,
   Cyrillic and Japanese kana are shown instead of `?`. Names too long to keep
   are shortened in the list; their saves keep the full name.

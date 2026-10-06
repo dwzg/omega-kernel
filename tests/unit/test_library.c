@@ -2,6 +2,8 @@
  * @file test_library.c
  * @brief Tests for core/save_type, core/recent, core/list_view and core/crc32.
  */
+#include <string.h>
+
 #include "check.h"
 #include "core/crc32.h"
 #include "core/list_view.h"
@@ -17,6 +19,44 @@ TEST(save_type_lookup_known_and_unknown)
     CHECK_EQ(SAVE_MODE_DEFAULT, save_type_lookup("FFFF")); /* the end marker */
     /* Corrected entry: Gauntlet - Dark Legacy uses 512 B EEPROM. */
     CHECK_EQ(SAVE_MODE_EEPROM_512, save_type_lookup("AYGE"));
+}
+
+/** Detect in a block of zero words with @p marker at byte offset @p at. */
+static save_mode_t detect_with(const char *marker, unsigned at, uint32_t rom_size)
+{
+    static uint32_t words[64];
+    memset(words, 0, sizeof(words));
+    memcpy((char *)words + at, marker, strlen(marker));
+    return save_type_detect(words, 64, rom_size);
+}
+
+TEST(save_type_detect_finds_library_markers)
+{
+    CHECK_EQ(SAVE_MODE_EEPROM_8K, detect_with("EEPROM_V124", 16, 0x800000));
+    CHECK_EQ(SAVE_MODE_EEPROM_8K_BIG, detect_with("EEPROM_V124", 16, 0x2000000));
+    CHECK_EQ(SAVE_MODE_SRAM, detect_with("SRAM_V113", 40, 0x400000));
+    CHECK_EQ(SAVE_MODE_SRAM, detect_with("SRAM_F_V102", 40, 0x400000));
+    CHECK_EQ(SAVE_MODE_FLASH_64K, detect_with("FLASH_V126", 100, 0x400000));
+    CHECK_EQ(SAVE_MODE_FLASH512_64K, detect_with("FLASH512_V131", 100, 0x400000));
+    CHECK_EQ(SAVE_MODE_FLASH_128K, detect_with("FLASH1M_V103", 200, 0x1000000));
+    /* Last possible place: the marker's first three words fit. */
+    CHECK_EQ(SAVE_MODE_FLASH_128K, detect_with("FLASH1M_V103", 244, 0x1000000));
+}
+
+TEST(save_type_detect_ignores_lookalikes)
+{
+    CHECK_EQ(SAVE_MODE_DEFAULT, detect_with("", 0, 0x400000));
+    CHECK_EQ(SAVE_MODE_DEFAULT, detect_with("EEPROM_V124", 17, 0x400000)); /* not aligned */
+    CHECK_EQ(SAVE_MODE_DEFAULT, detect_with("SRAM_X", 8, 0x400000));
+    CHECK_EQ(SAVE_MODE_DEFAULT, detect_with("FLASH2M_V1", 8, 0x400000));
+    CHECK_EQ(SAVE_MODE_DEFAULT, detect_with("EEPROM_V", 248, 0x400000)); /* cut off */
+}
+
+TEST(save_type_known_matches_database)
+{
+    CHECK(save_type_known("BPEE"));
+    CHECK(!save_type_known("ZZZZ"));
+    CHECK(!save_type_known("FFFF"));
 }
 
 TEST(save_type_resolve_eeprom_depends_on_rom_size)
@@ -149,6 +189,9 @@ TEST(crc32_matches_reference)
 SUITE(library)
 {
     RUN(save_type_lookup_known_and_unknown);
+    RUN(save_type_detect_finds_library_markers);
+    RUN(save_type_detect_ignores_lookalikes);
+    RUN(save_type_known_matches_database);
     RUN(save_type_resolve_eeprom_depends_on_rom_size);
     RUN(save_type_sizes_and_names);
     RUN(save_type_db_is_well_formed);

@@ -63,7 +63,17 @@ which only works if it has at most 32 fragments.
 | 4 | Flash 64K |
 | 5 | Flash 128K |
 
-The file is only written when the choice changes. A missing file means Auto.
+The file is written when the choice changes, and when the save type of a
+game that is not in the database has been detected. A missing file means
+Auto. The other bytes hold the detection result (the original kernel ignores
+them):
+
+| Byte | Meaning |
+| --- | --- |
+| 1 | `D` when bytes 2–11 are valid |
+| 2 | Detected save mode (the FPGA code, e.g. `0x31` = Flash 128K, `0x10` = none found) |
+| 4–7 | Game code the result belongs to |
+| 8–11 | ROM size it belongs to (little-endian); a different file is scanned again |
 
 ## Recently played (`/SAVER/Recently play.txt`)
 

@@ -16,7 +16,9 @@
 #include "core/path.h"
 #include "ff.h"
 #include "host.h"
+#include "loader/buffers.h"
 #include "loader/directory.h"
+#include "loader/save_files.h"
 #include "loader/sd_paths.h"
 #include "sim.h"
 
@@ -530,6 +532,54 @@ static void check_world_names(void)
     EXPECT(found_short);
 }
 
+/** Write a 1 MiB ROM with @p marker at byte @p at (or none). */
+static void write_rom(const char *path, const char *marker, uint32_t at)
+{
+    static uint8_t rom[1u << 20];
+    FIL f;
+    UINT written;
+    memset(rom, 0, sizeof(rom));
+    if (marker) {
+        memcpy(rom + at, marker, strlen(marker));
+    }
+    EXPECT(f_open(&f, path, FA_WRITE | FA_CREATE_ALWAYS) == FR_OK);
+    EXPECT(f_write(&f, rom, sizeof(rom), &written) == FR_OK && written == sizeof(rom));
+    f_close(&f);
+}
+
+/** Games missing from the database get their save type from their code, once. */
+static void check_save_detection(void)
+{
+    save_mode_t mode;
+    fresh_card();
+    /* The marker straddles the first two scan blocks. */
+    write_rom("/Hack.gba", "FLASH1M_V103", SCRATCH_SIZE - 8);
+    write_rom("/Plain.gba", NULL, 0);
+
+    EXPECT(!save_detected_read("Hack.gba", "ZHAK", 1u << 20, &mode));
+    EXPECT(save_mode_for_game(SAVE_CHOICE_AUTO, "Hack.gba", "ZHAK", 1u << 20, NULL, NULL) ==
+           SAVE_MODE_DEFAULT); /* no scan without a path */
+    EXPECT(save_mode_for_game(SAVE_CHOICE_AUTO, "Hack.gba", "ZHAK", 1u << 20, "/Hack.gba", NULL) ==
+           SAVE_MODE_FLASH_128K);
+    /* Cached, also for NOR games (no path), and kept when the choice changes. */
+    EXPECT(save_mode_for_game(SAVE_CHOICE_AUTO, "Hack.gba", "ZHAK", 1u << 20, NULL, NULL) ==
+           SAVE_MODE_FLASH_128K);
+    EXPECT(save_choice_write("Hack.gba", SAVE_CHOICE_SRAM));
+    EXPECT(save_choice_read("Hack.gba") == SAVE_CHOICE_SRAM);
+    EXPECT(save_mode_for_game(SAVE_CHOICE_SRAM, "Hack.gba", "ZHAK", 1u << 20, NULL, NULL) ==
+           SAVE_MODE_SRAM);
+    EXPECT(save_detected_read("Hack.gba", "ZHAK", 1u << 20, &mode) && mode == SAVE_MODE_FLASH_128K);
+    /* A different file under the same name is scanned again. */
+    EXPECT(!save_detected_read("Hack.gba", "ZHAK", 2u << 20, &mode));
+
+    EXPECT(save_mode_for_game(SAVE_CHOICE_AUTO, "Plain.gba", "ZPLN", 1u << 20, "/Plain.gba",
+                              NULL) == SAVE_MODE_DEFAULT);
+    EXPECT(save_detected_read("Plain.gba", "ZPLN", 1u << 20, &mode) && mode == SAVE_MODE_DEFAULT);
+    /* Known games never need a scan. */
+    EXPECT(save_mode_for_game(SAVE_CHOICE_AUTO, "x.gba", "BPEE", 16u << 20, NULL, NULL) ==
+           SAVE_MODE_FLASH_128K);
+}
+
 /** Root listing: folders first, then games, both sorted; other files hidden. */
 static void check_root_listing(void)
 {
@@ -601,6 +651,7 @@ int main(int argc, char **argv)
 
     check_attribute_filter();
     check_world_names();
+    check_save_detection();
     check_root_listing();
 
     memset(cheats_on, 0xFF, sizeof(cheats_on));

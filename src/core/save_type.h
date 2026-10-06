@@ -12,6 +12,7 @@
 #ifndef CORE_SAVE_TYPE_H
 #define CORE_SAVE_TYPE_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 /** FPGA save-mode codes. */
@@ -50,6 +51,9 @@ extern const save_type_db_entry_t save_type_db[];
 /** Save mode used when a game is not in the database. */
 #define SAVE_MODE_DEFAULT SAVE_MODE_SRAM_64K
 
+/** @brief Whether @p game_code is in the database. */
+bool save_type_known(const char game_code[4]);
+
 /**
  * @brief Look a game code up in the database.
  * @return The game's save mode, or ::SAVE_MODE_DEFAULT if unknown.
@@ -64,6 +68,29 @@ save_mode_t save_type_lookup(const char game_code[4]);
  *                   ::SAVE_MODE_EEPROM_8K_BIG.
  */
 save_mode_t save_type_resolve(save_choice_t choice, const char game_code[4], uint32_t rom_size);
+
+/**
+ * Bytes consecutive blocks passed to save_type_detect() must overlap, so a
+ * marker that straddles two blocks is still found.
+ */
+#define SAVE_TYPE_MARKER_OVERLAP 16
+
+/**
+ * @brief Find the save type of a game from its code.
+ *
+ * Games built with Nintendo's save library contain its version string,
+ * which names the chip: "EEPROM_V", "SRAM_V", "SRAM_F_V", "FLASH_V",
+ * "FLASH512_V" or "FLASH1M_V". The strings are word-aligned, so only word
+ * starts are checked.
+ *
+ * @param words    A block of the ROM.
+ * @param count    Number of words in the block.
+ * @param rom_size ROM size in bytes (EEPROM games over 18 MiB need
+ *                 ::SAVE_MODE_EEPROM_8K_BIG).
+ * @return The save mode, or ::SAVE_MODE_DEFAULT if the block names none.
+ *         EEPROM is reported as 8K, by far the most common size.
+ */
+save_mode_t save_type_detect(const uint32_t *words, uint32_t count, uint32_t rom_size);
 
 /** @brief Size of a newly created save file for @p mode, in bytes (0 = none). */
 uint32_t save_type_file_size(save_mode_t mode);

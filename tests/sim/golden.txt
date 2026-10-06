@@ -14,7 +14,7 @@ game_page_save_type              d59a8e34
 confirm_delete                   5f44c300
 boot_error                       20115181
 back_to_list                     f18fc2c9
-game_page_homebrew               f1cbe54c
+game_page_homebrew               1bffb5fa
 game_page_cheats                 fe14c794
 cheats                           f62d8376
 cheats_selected                  89ec7ca3

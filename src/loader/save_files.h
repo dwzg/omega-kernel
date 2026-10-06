@@ -10,6 +10,7 @@
 #include <stdint.h>
 
 #include "core/save_type.h"
+#include "loader/progress.h"
 
 /** Size of a save-state file (all of the SRAM pages it maps). */
 #define SAVE_STATE_FILE_SIZE 0x70000u
@@ -43,5 +44,30 @@ save_choice_t save_choice_read(const char *game_filename);
 
 /** @brief Remember the save type chosen for a game. */
 bool save_choice_write(const char *game_filename, save_choice_t choice);
+
+/**
+ * @brief The save type found earlier by scanning a game (cached in its
+ * `.mde` file), if it was made for this game code and ROM size.
+ */
+bool save_detected_read(const char *game_filename, const char game_code[4], uint32_t rom_size,
+                        save_mode_t *mode);
+
+/** @brief Cache the save type found by scanning a game. */
+bool save_detected_write(const char *game_filename, const char game_code[4], uint32_t rom_size,
+                         save_mode_t mode);
+
+/**
+ * @brief The save mode to use for a game.
+ *
+ * A forced choice or the database decide first. A game missing from the
+ * database is scanned for its save library's marker (see
+ * save_type_detect()) the first time it is started; the result is cached.
+ *
+ * @param rom_path  The game file to scan, or NULL to only use the cache.
+ * @param progress  Shows the scan; may be NULL.
+ */
+save_mode_t save_mode_for_game(save_choice_t choice, const char *game_filename,
+                               const char game_code[4], uint32_t rom_size, const char *rom_path,
+                               const progress_t *progress);
 
 #endif /* LOADER_SAVE_FILES_H */

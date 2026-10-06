@@ -73,6 +73,8 @@ typedef struct {
     game_info_t info;
     char name[FF_LFN_BUF + 1]; /**< Full file name (saves are named after it). */
     save_choice_t save_choice;
+    bool detected;             /**< detected_mode holds a cached scan result. */
+    save_mode_t detected_mode; /**< Save type found by scanning the game. */
     bool has_cheats;
     char cheat_path[PATH_MAX_LEN];
     unsigned cheats_selected;
@@ -154,6 +156,11 @@ static void draw_game_page(game_page_t *page, ui_list_t *list)
     char size[16];
     char line2[32];
     save_mode_t mode = save_type_resolve(page->save_choice, page->info.game_code, page->info.size);
+    const char *save = save_mode_name(mode);
+    if (page->save_choice == SAVE_CHOICE_AUTO && !save_type_known(page->info.game_code)) {
+        /* Not in the database: found when the game is first started. */
+        save = page->detected ? save_mode_name(page->detected_mode) : "Found at start";
+    }
 
     strip_extension(title, sizeof(title), page->name);
     text_format_size(size, sizeof(size), page->info.size);
@@ -162,7 +169,7 @@ static void draw_game_page(game_page_t *page, ui_list_t *list)
     } else {
         text_copy(line1, sizeof(line1), size); /* homebrew often has no game code */
     }
-    snprintf(line2, sizeof(line2), "Save: %s", save_mode_name(mode));
+    snprintf(line2, sizeof(line2), "Save: %s", save);
     const char *const lines[] = {line1, line2};
 
     ui_title_bar(title, NULL);
@@ -187,6 +194,9 @@ static void start(game_page_t *page, boot_action_t action, bool bios_boot)
     } else {
         ui_message(to_nor ? "Can't Copy Game" : "Can't Start Game", boot_result_message(result));
     }
+    /* Starting may have detected the save type. */
+    page->detected =
+        save_detected_read(page->name, page->info.game_code, page->info.size, &page->detected_mode);
 }
 
 static void explain_add_ons(void)
@@ -207,6 +217,8 @@ void ui_game_page(app_t *app, const char *path)
     sd_long_name(path, page.name, sizeof(page.name));
     game_info_read(path, &page.info);
     page.save_choice = save_choice_read(page.name);
+    page.detected =
+        save_detected_read(page.name, page.info.game_code, page.info.size, &page.detected_mode);
     g_cheat_code_count = 0;
     page.has_cheats =
         app->settings.cheats && cheat_file_find(path, page.cheat_path, sizeof(page.cheat_path));

@@ -131,8 +131,13 @@ enabled (the default) most well-known games skip this step entirely.
 ## Save types
 
 The kernel recognises the save type of over 2,800 games from their game code.
-Unknown games, including most homebrew, get 64 KB of SRAM, which suits nearly
-all of them.
+For a game that isn't in its list (a ROM hack, a prototype, a new
+translation), it looks for the name of the save chip that Nintendo's save
+library leaves in the game the first time you start it, which takes a few
+seconds. The game page shows "Found at start" until then. The result is
+remembered in `/SAVER/<game>.mde`. Games without such a name, including most
+homebrew, get 64 KB of SRAM, which suits nearly all of them. Detected EEPROM
+games get 8K EEPROM; the few that need 512 B must be set by hand.
 
 If a game doesn't save, or complains about its save memory, choose its save
 type by hand on the game page (**Save**, then **Left / Right**). The

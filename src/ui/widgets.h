@@ -105,6 +105,9 @@ void ui_list_redraw_selected(ui_list_t *list);
  */
 ui_list_event_t ui_list_update(ui_list_t *list, const input_t *input);
 
+/** @brief Select row @p index (scrolling as needed) and redraw what changed. */
+void ui_list_jump(ui_list_t *list, unsigned index);
+
 /** @brief The selected row index. */
 static inline unsigned ui_list_selected(const ui_list_t *list)
 {

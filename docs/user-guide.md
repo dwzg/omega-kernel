@@ -41,7 +41,7 @@ and what they do; it changes with the selected item. In general:
 | **A** | Open the selected item, or choose it |
 | **B** | Go back one screen |
 | **START** | In the SD card browser: open Recently Played |
-| **Left / Right** | Change a value: the save type on a game page, On / Off in Settings |
+| **Left / Right** | In the SD card browser: jump to the previous / next first letter. Elsewhere: change a value (the save type on a game page, On / Off in Settings) |
 | **Hold L + A** | Start a game through the BIOS (Nintendo logo) instead of directly |
 
 The clock in the top-right corner is the cartridge's real-time clock.
@@ -74,7 +74,10 @@ list. Names too long for the screen scroll when selected. **B** in the top
 folder opens the main menu.
 
 The browser remembers where you were in each folder while the GBA is on.
-Going up with **B** selects the folder you came from.
+Going up with **B** selects the folder you came from. In long folders,
+**Right** jumps to the first game of the next letter and **Left** back to
+the start of the letter (or the one before); all names starting with a
+digit count as one letter.
 
 File names with accents (`Pokémon - Version Émeraude`), Greek, Cyrillic and
 Japanese kana are shown as they are; other characters, such as kanji, are

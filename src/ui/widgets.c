@@ -403,6 +403,35 @@ static void scroll_rows(ui_list_t *list, int delta, unsigned old_selected)
     draw_scrollbar(list); /* the moved rows carry the old thumb position */
 }
 
+/** Redraw what a change of the selection (and maybe scroll) needs. */
+static void show_move(ui_list_t *list, unsigned old_selected, unsigned old_top)
+{
+    list->marquee_frames = 0;
+    list->marquee_offset = 0;
+    int delta = (int)list->view.top - (int)old_top;
+    int limit = (int)list->view.visible;
+    bool full_width = list->left == 0 && list->width == GFX_WIDTH;
+    if (delta == 0) {
+        draw_row(list, old_selected, false);
+        draw_row(list, list->view.selected, false);
+    } else if (full_width && delta > -limit && delta < limit &&
+               shown_rows(list) == list->view.visible) {
+        scroll_rows(list, delta, old_selected);
+    } else {
+        ui_list_draw(list);
+    }
+}
+
+void ui_list_jump(ui_list_t *list, unsigned index)
+{
+    unsigned old_selected = list->view.selected;
+    unsigned old_top = list->view.top;
+    flush_pending(list);
+    if (list_view_move(&list->view, (int)index - (int)old_selected)) {
+        show_move(list, old_selected, old_top);
+    }
+}
+
 ui_list_event_t ui_list_update(ui_list_t *list, const input_t *input)
 {
     unsigned old_selected = list->view.selected;
@@ -424,20 +453,7 @@ ui_list_event_t ui_list_update(ui_list_t *list, const input_t *input)
     }
 
     if (moved) {
-        list->marquee_frames = 0;
-        list->marquee_offset = 0;
-        int delta = (int)list->view.top - (int)old_top;
-        int limit = (int)list->view.visible;
-        bool full_width = list->left == 0 && list->width == GFX_WIDTH;
-        if (delta == 0) {
-            draw_row(list, old_selected, false);
-            draw_row(list, list->view.selected, false);
-        } else if (full_width && delta > -limit && delta < limit &&
-                   shown_rows(list) == list->view.visible) {
-            scroll_rows(list, delta, old_selected);
-        } else {
-            ui_list_draw(list);
-        }
+        show_move(list, old_selected, old_top);
     } else if (list->view.count > 0 && list->marquee_span > 0 &&
                ++list->marquee_frames > MARQUEE_PAUSE) {
         /* One pixel per frame, resting at the start of every round. */

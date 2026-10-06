@@ -50,6 +50,7 @@ Metrics and colours are in `src/ui/theme.h`.
 | --- | --- |
 | `ui_title_bar()`, `ui_tick()` | Title bar with clock; `ui_tick()` keeps the clock current |
 | `ui_hints()` | The button hint bar: `"A Open|B Back|START Recent"`, with `<>` and `^v` for the d-pad |
+| `ui_list_jump()` | Select a row far away (letter jump), redrawing only what changed |
 | `ui_list_t` | Scrolling list. Rows are produced on demand by a callback filling a `ui_row_t` (label, value, kind, checked, dimmed), so lists of any length cost no memory. Handles up/down, L/R paging, key repeat, headings that can't be selected, and scrolling of labels that don't fit |
 | `ui_message()` | Message; A or B closes it |
 | `ui_confirm()` | Question; A does the action, B cancels |

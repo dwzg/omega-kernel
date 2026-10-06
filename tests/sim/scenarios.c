@@ -118,6 +118,46 @@ static const sim_step_t SCROLL_CONSISTENCY[] = {
     END,
 };
 
+#define LEFT PRESS(BTN_LEFT)
+#define RIGHT PRESS(BTN_RIGHT)
+
+/* Root: ATTR CHEAT GBA IMGS SAVER | Advance Castlevania Golden Homebrew
+ * Mario Metroid Pokemon The-Legend. */
+static const sim_step_t LETTER_JUMP[] = {
+    RIGHT,
+    RIGHT,
+    RIGHT,
+    RIGHT,
+    RIGHT, /* past the folders */
+    WAIT(2),
+    SHOT("jump_first_game"),
+    RIGHT,
+    RIGHT,
+    RIGHT,
+    RIGHT, /* C G H M */
+    DOWN,
+    WAIT(2),
+    SHOT("jump_m_second"), /* Metroid */
+    LEFT,
+    WAIT(2),
+    SHOT("jump_m_start"), /* back to Mario */
+    LEFT,
+    WAIT(2),
+    SHOT("jump_h"), /* at a group start: Homebrew */
+    RIGHT,
+    RIGHT,
+    RIGHT,
+    RIGHT, /* M P T, then nothing further */
+    WAIT(2),
+    SHOT("jump_last"),
+    A,
+    WAIT(2),
+    B,
+    WAIT(2),
+    SHOT("jump_last_redrawn"),
+    END,
+};
+
 static const sim_step_t ATTRIBUTES[] = {
     A,
     WAIT(2),
@@ -789,6 +829,13 @@ int main(int argc, char **argv)
         /* A last played game whose folder is gone: start in the top folder. */
         const golden_t *a = find_actual("resume_missing_folder");
         const golden_t *b = find_actual("sd_root");
+        EXPECT(a && b && a->crc == b->crc);
+    }
+    run(LETTER_JUMP, NULL);
+    {
+        /* Jumps redraw only what changed; that must match a full redraw. */
+        const golden_t *a = find_actual("jump_last");
+        const golden_t *b = find_actual("jump_last_redrawn");
         EXPECT(a && b && a->crc == b->crc);
     }
     run(NOR_LIBRARY, NULL);

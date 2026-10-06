@@ -9,6 +9,7 @@
 
 #include "core/game_file.h"
 #include "core/text.h"
+#include "core/utf8.h"
 #include "ff.h"
 #include "platform/attributes.h"
 
@@ -88,6 +89,41 @@ int directory_find(const char *name)
         }
     }
     return -1;
+}
+
+/** The group of entry @p index for directory_jump(). */
+static uint32_t group_of(unsigned index)
+{
+    const char *name = directory_entry(index)->name;
+    uint32_t c = text_fold(utf8_next(&name));
+    if (c >= '0' && c <= '9') {
+        c = '0';
+    }
+    return directory_is_folder(index) ? c | 0x80000000u : c;
+}
+
+unsigned directory_jump(unsigned index, int direction)
+{
+    unsigned total = s_listing.folders + s_listing.files;
+    if (index >= total) {
+        return index;
+    }
+    uint32_t group = group_of(index);
+    if (direction > 0) {
+        unsigned i = index + 1;
+        while (i < total && group_of(i) == group) {
+            i++;
+        }
+        return i < total ? i : index;
+    }
+    unsigned i = index;
+    if (i > 0 && group_of(i - 1) != group) {
+        group = group_of(--i); /* at a group start: go to the previous one */
+    }
+    while (i > 0 && group_of(i - 1) == group) {
+        i--;
+    }
+    return i;
 }
 
 bool directory_is_folder(unsigned index)

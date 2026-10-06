@@ -54,4 +54,16 @@ const char *directory_open_name(unsigned index);
 /** @brief Index of the entry opened as @p name in the last listing, or -1. */
 int directory_find(const char *name);
 
+/**
+ * @brief Where to jump from entry @p index to reach the next (@p direction
+ * > 0) or previous letter.
+ *
+ * Entries are grouped by their first character as sorted (ignoring case and
+ * accents; all digits form one group), folders separately from files.
+ * Forwards goes to the first entry of the next group; backwards to the
+ * first entry of the current group, or of the previous one when already
+ * there. Returns @p index when there is nowhere to go.
+ */
+unsigned directory_jump(unsigned index, int direction);
+
 #endif /* LOADER_DIRECTORY_H */

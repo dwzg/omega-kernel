@@ -110,9 +110,11 @@ static void browser_hints(const app_t *app, const ui_list_t *list)
     if (list->view.count == 0) {
         ui_hints(at_root ? "B Menu|START Recent" : "B Back|START Recent");
     } else if (folder) {
-        ui_hints(at_root ? "A Open|B Menu|START Recent" : "A Open|B Back|START Recent");
+        ui_hints(at_root ? "A Open|B Menu|<> A-Z|START Recent"
+                         : "A Open|B Back|<> A-Z|START Recent");
     } else {
-        ui_hints(at_root ? "A Select|B Menu|START Recent" : "A Select|B Back|START Recent");
+        ui_hints(at_root ? "A Select|B Menu|<> A-Z|START Recent"
+                         : "A Select|B Back|<> A-Z|START Recent");
     }
 }
 
@@ -158,7 +160,16 @@ void ui_sd_browser(app_t *app)
                 ui_tick();
                 platform_read_input(&input);
                 unsigned before = ui_list_selected(&list);
-                ui_list_event_t event = ui_list_update(&list, &input);
+                ui_list_event_t event = UI_LIST_IDLE;
+                if (total > 0 && (input.repeated & (BTN_LEFT | BTN_RIGHT))) {
+                    /* Left / right: previous / next first letter. */
+                    unsigned target = directory_jump(before, (input.repeated & BTN_RIGHT) ? 1 : -1);
+                    if (target != before) {
+                        ui_list_jump(&list, target);
+                    }
+                } else {
+                    event = ui_list_update(&list, &input);
+                }
                 pos->selected = (uint16_t)list.view.selected;
                 pos->top = (uint16_t)list.view.top;
                 if (ui_list_selected(&list) != before) {

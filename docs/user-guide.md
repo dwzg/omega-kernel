@@ -8,7 +8,7 @@ For the folders the kernel creates on the SD card, see
 - [Controls](#controls)
 - [The screens](#the-screens)
 - [Starting games](#starting-games)
-- [Save types](#save-types)
+- [Save types](#save-types) and [backups](#save-backups)
 - [In-game add-ons](#in-game-add-ons)
 - [Cheats](#cheats)
 - [NOR flash](#nor-flash)
@@ -94,6 +94,7 @@ below it, and the options on the right:
 | **NOR + add-ons** | The same, with the add-ons built in. |
 | **Save** | Use **Left / Right** to override the detected save type. |
 | **Cheats** | Only shown when cheats are enabled and a cheat file was found. |
+| **Restore save** | Only shown when there is a backup: go back to the save from before the last start, see [Save backups](#save-backups). |
 | **Delete** | Delete the game file from the SD card. Its save file is kept. |
 
 ### Recently played
@@ -153,6 +154,15 @@ game is started from NOR flash.
 
 Save files are standard 32/64/128 KB, 512 B or 8 KB images and work in
 emulators and other flash carts.
+
+### Save backups
+
+Each time you start a game, the kernel first copies its save file to
+`/SAVER/<game>.bak`. If a session goes wrong (a crash, a corrupted save, a
+wrong save type), open the game page **before starting the game again** and
+choose **Restore save**. This swaps the save and the backup, so choosing it
+once more undoes the restore. Starting the game replaces the backup with the
+current save.
 
 ## In-game add-ons
 

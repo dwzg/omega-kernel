@@ -362,6 +362,16 @@ static const sim_step_t WORLD_NAMES[] = {
     END,
 };
 
+/* Metroid Fusion has a save and a backup (written before the run). */
+static const sim_step_t SAVE_BACKUP[] = {
+    WAIT(2), A,       DOWN,
+    DOWN,    DOWN,    DOWN,
+    DOWN,    WAIT(2), SHOT("game_page_restore"),
+    A,       WAIT(2), SHOT("restore_confirm"),
+    A,       WAIT(2), B,
+    B,       END,
+};
+
 static const sim_step_t ABOUT[] = {
     B, DOWN, DOWN, DOWN, DOWN, A, WAIT(2), SHOT("about"), END,
 };
@@ -580,6 +590,68 @@ static void check_save_detection(void)
            SAVE_MODE_FLASH_128K);
 }
 
+/** Write @p size bytes of @p value to @p path. */
+static void write_filled(const char *path, uint8_t value, uint32_t size)
+{
+    FIL f;
+    UINT done;
+    memset(g_scratch, value, size);
+    EXPECT(f_open(&f, path, FA_WRITE | FA_CREATE_ALWAYS) == FR_OK);
+    EXPECT(f_write(&f, g_scratch, size, &done) == FR_OK && done == size);
+    f_close(&f);
+}
+
+/** The first byte of @p path, or -1 if it can't be read. */
+static int first_byte(const char *path)
+{
+    FIL f;
+    UINT done = 0;
+    uint8_t b = 0;
+    if (f_open(&f, path, FA_READ) != FR_OK) {
+        return -1;
+    }
+    f_read(&f, &b, 1, &done);
+    f_close(&f);
+    return done == 1 ? b : -1;
+}
+
+#define FUSION_SAV SD_DIR_SAVES "/Metroid Fusion.sav"
+#define FUSION_BAK SD_DIR_SAVES "/Metroid Fusion.bak"
+
+/** Saves are copied before each start; a restore swaps save and backup. */
+static void check_save_backup(void)
+{
+    fresh_card();
+    f_mkdir(SD_DIR_SAVES);
+    write_filled(FUSION_SAV, 0xFF, 0x2000); /* never written: not backed up */
+    EXPECT(!save_file_backup("Metroid Fusion.gba"));
+    EXPECT(!save_backup_exists("Metroid Fusion.gba"));
+
+    write_filled(FUSION_SAV, 0x11, 0x20000);
+    EXPECT(save_file_backup("Metroid Fusion.gba"));
+    EXPECT(save_backup_exists("Metroid Fusion.gba"));
+    EXPECT(first_byte(FUSION_BAK) == 0x11);
+
+    write_filled(FUSION_SAV, 0x22, 0x20000); /* the game played on */
+    EXPECT(save_backup_restore("Metroid Fusion.gba"));
+    EXPECT(first_byte(FUSION_SAV) == 0x11 && first_byte(FUSION_BAK) == 0x22);
+    EXPECT(save_backup_restore("Metroid Fusion.gba")); /* and back */
+    EXPECT(first_byte(FUSION_SAV) == 0x22 && first_byte(FUSION_BAK) == 0x11);
+
+    f_unlink(FUSION_SAV); /* only the backup left */
+    EXPECT(save_backup_restore("Metroid Fusion.gba"));
+    EXPECT(first_byte(FUSION_SAV) == 0x11 && !save_backup_exists("Metroid Fusion.gba"));
+    EXPECT(!save_backup_restore("Metroid Fusion.gba"));
+}
+
+/** Prepares the card of the SAVE_BACKUP scenario. */
+static void setup_save_backup(void)
+{
+    f_mkdir(SD_DIR_SAVES);
+    write_filled(FUSION_SAV, 0x22, 0x8000);
+    write_filled(FUSION_BAK, 0x11, 0x8000);
+}
+
 /** Root listing: folders first, then games, both sorted; other files hidden. */
 static void check_root_listing(void)
 {
@@ -604,11 +676,18 @@ static const char KEEP_HISTORY[] = "";
  * Run @p script on a fresh card whose play history is: none (NULL), the
  * card's own list (KEEP_HISTORY), or just @p last_played.
  */
+/** Called on the fresh card of the next run, before it starts. */
+static void (*s_setup)(void);
+
 static void run_with_history(const sim_step_t *script, const uint16_t *settings,
                              const char *last_played)
 {
     fresh_card();
     sim_nor_set_games(4);
+    if (s_setup) {
+        s_setup();
+        s_setup = NULL;
+    }
     if (!last_played) {
         f_unlink(SD_FILE_RECENT);
     } else if (last_played != KEEP_HISTORY) {
@@ -652,6 +731,7 @@ int main(int argc, char **argv)
     check_attribute_filter();
     check_world_names();
     check_save_detection();
+    check_save_backup();
     check_root_listing();
 
     memset(cheats_on, 0xFF, sizeof(cheats_on));
@@ -668,6 +748,9 @@ int main(int argc, char **argv)
     }
     run(ATTRIBUTES, NULL);
     run(GAME_PAGE, NULL);
+    s_setup = setup_save_backup;
+    run_with_history(SAVE_BACKUP, NULL, "/Metroid Fusion.gba");
+    EXPECT(first_byte(FUSION_SAV) == 0x11 && first_byte(FUSION_BAK) == 0x22);
     EXPECT(sim_boot_requests() == 1);
     run(HOMEBREW, NULL);
     run(CHEATS, cheats_on);

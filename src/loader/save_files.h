@@ -28,6 +28,22 @@ uint32_t save_file_size(const char *path);
 /** @brief Create a save file of @p size bytes filled with 0xFF. */
 bool save_file_create(const char *path, uint32_t size);
 
+/**
+ * @brief Copy a game's save file to `/SAVER/<game>.bak`, replacing the
+ * previous backup. A save that is still blank (all 0xFF) is not copied.
+ * @return true if a backup was written.
+ */
+bool save_file_backup(const char *game_filename);
+
+/** @brief Whether a game has a save backup. */
+bool save_backup_exists(const char *game_filename);
+
+/**
+ * @brief Swap a game's save file and its backup (so calling it again undoes
+ * it). Without a save file, the backup becomes the save file.
+ */
+bool save_backup_restore(const char *game_filename);
+
 /** @brief Copy a save file (up to 128 KiB) into cartridge SRAM. */
 bool save_file_load_to_sram(const char *path);
 

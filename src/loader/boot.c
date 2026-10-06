@@ -56,6 +56,10 @@ static boot_result_t prepare_save(const char *game_name, save_mode_t mode, bool 
     }
 
     *save_size = save_file_size(path);
+    if (*save_size > 0 && starting) {
+        progress_status(progress, "Backing up save");
+        save_file_backup(game_name);
+    }
     if (*save_size == 0) {
         *save_size = save_type_file_size(mode);
         if (*save_size == 0) {

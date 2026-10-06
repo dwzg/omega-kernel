@@ -64,6 +64,7 @@ typedef enum {
     OPT_NOR_HOOKS,
     OPT_SAVE_TYPE,
     OPT_CHEATS,
+    OPT_RESTORE,
     OPT_DELETE,
 } option_t;
 
@@ -114,6 +115,9 @@ static void game_row(void *ctx, unsigned index, ui_row_t *row)
         }
         row->kind = ROW_CHEVRON;
         break;
+    case OPT_RESTORE:
+        text_copy(row->label, sizeof(row->label), "Restore save");
+        break;
     case OPT_DELETE:
         text_copy(row->label, sizeof(row->label), "Delete");
         break;
@@ -142,6 +146,9 @@ static void game_hints(const game_page_t *page, const ui_list_t *list)
         break;
     case OPT_CHEATS:
         ui_hints("A Choose|B Back");
+        break;
+    case OPT_RESTORE:
+        ui_hints("A Restore|B Back");
         break;
     case OPT_DELETE:
         ui_hints("A Delete|B Back");
@@ -231,6 +238,9 @@ void ui_game_page(app_t *app, const char *path)
     if (page.has_cheats) {
         page.options[page.option_count++] = OPT_CHEATS;
     }
+    if (save_backup_exists(page.name)) {
+        page.options[page.option_count++] = OPT_RESTORE;
+    }
     page.options[page.option_count++] = OPT_DELETE;
 
     platform_set_key_repeat(LIST_REPEAT_DELAY, LIST_REPEAT_RATE);
@@ -291,6 +301,15 @@ void ui_game_page(app_t *app, const char *path)
             continue; /* changed with left / right */
         case OPT_CHEATS:
             page.cheats_selected = ui_cheats(page.cheat_path);
+            break;
+        case OPT_RESTORE:
+            if (ui_confirm("Restore Save",
+                           "Go back to the save from before the last start? The current save "
+                           "becomes the backup, so you can switch back.",
+                           "Restore") &&
+                !save_backup_restore(page.name)) {
+                ui_message("Can't Restore Save", "The save files could not be renamed.");
+            }
             break;
         case OPT_DELETE: {
             char question[160];

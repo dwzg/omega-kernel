@@ -10,6 +10,7 @@ and cartridges can be moved between the two.
 /                         your games (*.gba), in any folders you like
 ├── SAVER/                save files, save-type choices, recently played
 │   ├── <game>.sav
+│   ├── <game>.bak        the save from before the last start
 │   ├── <game>.mde
 │   └── Recently play.txt
 ├── RTS/                  save states: <game>.rts

@@ -11,6 +11,9 @@ All notable changes to this project are documented here. The format follows
 - **Start where you left off.** The kernel opens the folder of the game you
   played last, with that game selected. **B** selects the folder you came
   from.
+- **Save backups.** Before a game starts, its save is copied to
+  `/SAVER/<game>.bak`. **Restore save** on the game page goes back to it
+  (and can be undone the same way).
 - **Save type detection.** A game missing from the save type list is
   checked for the name of its save chip the first time it is started, so ROM
   hacks, prototypes and translations with new game codes save correctly

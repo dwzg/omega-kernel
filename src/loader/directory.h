@@ -2,9 +2,12 @@
  * @file directory.h
  * @brief Listing a folder of the SD card for the file browser.
  *
- * Shows sub-folders first, then GBA games, each group sorted by name
- * (ignoring case). Hidden and system entries and macOS resource files
+ * Shows sub-folders first, then GBA games, each group sorted by name (see
+ * text_compare_names()). Hidden and system entries and macOS resource files
  * ("._Name.gba") are skipped.
+ *
+ * Names are kept in one pool, with an 8-byte record per entry, so a folder
+ * can hold up to ::DIR_MAX_ENTRIES entries and sorting moves only records.
  */
 #ifndef LOADER_DIRECTORY_H
 #define LOADER_DIRECTORY_H
@@ -12,25 +15,18 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/** Space for a displayed name; longer names are shortened for display. */
+/** Space for a name shown in short lists (recently played, favorites). */
 #define DIR_NAME_LEN 84
-/** Maximum number of folders listed. */
-#define DIR_MAX_FOLDERS 256
-/** Maximum number of games listed. */
-#define DIR_MAX_FILES 512
-
-/** One listed entry. */
-typedef struct {
-    char name[DIR_NAME_LEN]; /**< UTF-8 name, cut short if it doesn't fit. */
-    char short_name[13];     /**< 8.3 name if @ref name was cut short, else "". */
-    uint32_t size;           /**< Bytes (0 for folders). */
-} dir_entry_t;
+/** Maximum number of entries (folders and games) listed. */
+#define DIR_MAX_ENTRIES 2048
+/** Bytes for the names of one listing (about 30 per entry on average). */
+#define DIR_NAME_POOL_SIZE 63232
 
 /** Summary of the last listing. */
 typedef struct {
     unsigned folders; /**< Entries 0 .. folders-1 are folders. */
     unsigned files;   /**< Entries folders .. folders+files-1 are games. */
-    bool truncated;   /**< Some entries did not fit. */
+    bool truncated;   /**< Some entries did not fit (too many, or names too long). */
 } dir_listing_t;
 
 /**
@@ -39,15 +35,18 @@ typedef struct {
  */
 bool directory_read(const char *path, dir_listing_t *listing);
 
-/** @brief Entry @p index of the last listing (folders first). */
-const dir_entry_t *directory_entry(unsigned index);
+/** @brief Full UTF-8 name of entry @p index of the last listing (folders first). */
+const char *directory_name(unsigned index);
+
+/** @brief Size in bytes of entry @p index (0 for folders). */
+uint32_t directory_size(unsigned index);
 
 /** @brief true if entry @p index of the last listing is a folder. */
 bool directory_is_folder(unsigned index);
 
 /**
  * @brief The name to open entry @p index with: its full name, or its 8.3
- * short name if the full name was too long to keep.
+ * short name if the full name would make the path too long.
  */
 const char *directory_open_name(unsigned index);
 

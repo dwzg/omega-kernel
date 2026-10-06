@@ -97,13 +97,12 @@ void ui_main_menu(app_t *app)
 static void browser_row(void *ctx, unsigned index, ui_row_t *row)
 {
     (void)ctx;
-    const dir_entry_t *e = directory_entry(index);
     if (directory_is_folder(index)) {
-        text_copy(row->label, sizeof(row->label), e->name);
+        text_copy(row->label, sizeof(row->label), directory_name(index));
         row->kind = ROW_CHEVRON;
     } else {
-        display_name(row->label, sizeof(row->label), e->name);
-        text_format_size(row->value, sizeof(row->value), e->size);
+        display_name(row->label, sizeof(row->label), directory_name(index));
+        text_format_size(row->value, sizeof(row->value), directory_size(index));
         row->kind = ROW_PLAIN;
     }
 }

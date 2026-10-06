@@ -142,8 +142,20 @@ int text_compare_names(const char *a, const char *b)
             }
             continue;
         }
-        uint32_t ca = text_fold(utf8_next(&pa));
-        uint32_t cb = text_fold(utf8_next(&pb));
+        uint32_t ca;
+        uint32_t cb;
+        if ((uint8_t)*pa < 0x80 && (uint8_t)*pb < 0x80) {
+            /* Fast path for plain ASCII, by far the most common. */
+            ca = (uint8_t)*pa;
+            cb = (uint8_t)*pb;
+            ca += (ca >= 'A' && ca <= 'Z') ? 'a' - 'A' : 0;
+            cb += (cb >= 'A' && cb <= 'Z') ? 'a' - 'A' : 0;
+            pa += ca != 0;
+            pb += cb != 0;
+        } else {
+            ca = text_fold(utf8_next(&pa));
+            cb = text_fold(utf8_next(&pb));
+        }
         if (ca != cb) {
             return ca < cb ? -1 : 1;
         }

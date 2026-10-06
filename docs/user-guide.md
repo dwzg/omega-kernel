@@ -287,7 +287,7 @@ on again. **Don't turn it off during the update.**
 | Problem | What to try |
 | --- | --- |
 | "No SD Card" at start-up | Re-insert the card. Check it is FAT32 or exFAT, not NTFS. |
-| A game is missing from the list | Only `.gba` files are listed; hidden files are not. Folders can hold up to 512 games and 256 subfolders. |
+| A game is missing from the list | Only `.gba` files are listed; hidden files are not. A folder lists up to 2,048 games and subfolders (fewer if the names are very long). |
 | "The file is too fragmented" | Copy the game to the card again (or defragment the card). |
 | A game doesn't save | Choose its save type by hand on the game page. |
 | A game crashes only with add-ons | Use **Play**. Delete `/PATCH/<game>.pat` and try again with **Fast patching** off. |

@@ -23,8 +23,10 @@ All notable changes to this project are documented here. The format follows
   hacks, prototypes and translations with new game codes save correctly
   without choosing the type by hand.
 - **File names in other languages.** Accented letters (é, ü, ñ, ...), Greek,
-  Cyrillic and Japanese kana are shown instead of `?`. Names too long to keep
-  are shortened in the list; their saves keep the full name.
+  Cyrillic and Japanese kana are shown instead of `?`, and long names are
+  kept in full (they scroll when selected).
+- **Bigger folders.** A folder lists up to 2,048 entries instead of 512 games
+  and 256 folders, in the same memory: names are kept in one shared pool.
 
 ### Changed
 

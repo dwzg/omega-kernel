@@ -29,9 +29,9 @@ name in different folders therefore share their save.
 
 Paths are limited to 255 characters. File names may be long names in any
 language. The kernel shows Latin letters with accents, Greek, Cyrillic and
-Japanese kana; other characters (such as kanji) are shown as `?`. Names longer
-than about 80 bytes are shortened in the list and opened through their 8.3
-short name, but their save and other files still use the full name.
+Japanese kana; other characters (such as kanji) are shown as `?`. A name that would
+make the whole path longer than 255 bytes is opened through its 8.3 short
+name, but its save and other files still use the full name.
 
 ## Save files (`/SAVER/*.sav`)
 

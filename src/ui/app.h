@@ -40,7 +40,7 @@ typedef struct {
     app_position_t positions[APP_MAX_DEPTH]; /**< Per depth, root = 0. */
     unsigned depth;
     /** Entry to select when the browser next opens @ref sd_path ("" = none). */
-    char select_name[104];
+    char select_name[PATH_MAX_LEN];
 } app_t;
 
 /** @brief Load settings from flash into @p app. */

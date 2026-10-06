@@ -619,9 +619,9 @@ static void check_attribute_filter(void)
     EXPECT(listing.folders == 0);
     EXPECT(listing.files == 3);
     if (listing.files == 3) {
-        EXPECT(strcmp(directory_entry(0)->name, "No Archive Bit.gba") == 0);
-        EXPECT(strcmp(directory_entry(1)->name, "Normal.gba") == 0);
-        EXPECT(strcmp(directory_entry(2)->name, "Read Only.gba") == 0);
+        EXPECT(strcmp(directory_name(0), "No Archive Bit.gba") == 0);
+        EXPECT(strcmp(directory_name(1), "Normal.gba") == 0);
+        EXPECT(strcmp(directory_name(2), "Read Only.gba") == 0);
     }
 }
 
@@ -632,33 +632,75 @@ static void check_attribute_filter(void)
 static void check_world_names(void)
 {
     dir_listing_t listing;
-    char path[PATH_MAX_LEN];
-    FIL f;
     bool found_accented = false;
-    bool found_short = false;
+    bool found_long = false;
 
     fresh_card();
     EXPECT(directory_read("/GBA/World", &listing));
     EXPECT(listing.folders == 1 && listing.files == 3);
     for (unsigned i = 0; i < listing.folders + listing.files; i++) {
-        const char *name = directory_entry(i)->name;
+        const char *name = directory_name(i);
         found_accented |= strcmp(name, "Pok\xC3\xA9mon - Version \xC3\x89meraude.gba") == 0;
-        if (strcmp(directory_open_name(i), name) != 0) {
-            /* Too long to keep: shown shortened, opened by its short name. */
-            found_short = true;
-            EXPECT(strchr(directory_open_name(i), '~') != NULL);
-            EXPECT(path_join(path, sizeof(path), "/GBA/World", directory_open_name(i)));
-            EXPECT(f_open(&f, path, FA_READ) == FR_OK);
-            f_close(&f);
-            /* Saves and other companion files use the full name. */
-            char full[FF_LFN_BUF + 1];
-            sd_long_name(path, full, sizeof(full));
-            EXPECT(strlen(full) > DIR_NAME_LEN && strstr(full, "[v1.2].gba") != NULL);
-        }
-        EXPECT(strlen(name) < DIR_NAME_LEN);
+        found_long |= strstr(name, "[v1.2].gba") != NULL; /* kept in full */
+        EXPECT(strcmp(directory_open_name(i), name) == 0);
     }
     EXPECT(found_accented);
-    EXPECT(found_short);
+    EXPECT(found_long);
+}
+
+/**
+ * A name that would make the path longer than 255 bytes is opened by its
+ * 8.3 short name; saves still use the full name.
+ */
+static void check_short_name_fallback(void)
+{
+    char folder[PATH_MAX_LEN] = "/";
+    char path[PATH_MAX_LEN];
+    char game[160];
+    dir_listing_t listing;
+    FIL f;
+
+    fresh_card();
+    memset(folder + 1, 'F', 150);
+    folder[151] = '\0';
+    memset(game, 'G', 120);
+    strcpy(game + 120, ".gba");
+    EXPECT(f_mkdir(folder) == FR_OK);
+    /* The full path is too long for the kernel's buffers: create it from inside. */
+    EXPECT(f_chdir(folder) == FR_OK);
+    EXPECT(f_open(&f, game, FA_WRITE | FA_CREATE_NEW) == FR_OK);
+    f_close(&f);
+    EXPECT(f_chdir("/") == FR_OK);
+
+    EXPECT(directory_read(folder, &listing) && listing.files == 1);
+    EXPECT(strcmp(directory_name(0), game) == 0);
+    EXPECT(strchr(directory_open_name(0), '~') != NULL);
+    EXPECT(path_join(path, sizeof(path), folder, directory_open_name(0)));
+    EXPECT(f_open(&f, path, FA_READ) == FR_OK);
+    f_close(&f);
+    char full[FF_LFN_BUF + 1];
+    sd_long_name(path, full, sizeof(full));
+    EXPECT(strcmp(full, game) == 0);
+}
+
+/** Many games in one folder: far more than the old limit of 512. */
+static void check_large_folder(void)
+{
+    char path[64];
+    dir_listing_t listing;
+    FIL f;
+
+    fresh_card();
+    EXPECT(f_mkdir("/Big") == FR_OK);
+    for (unsigned i = 0; i < 1500; i++) {
+        snprintf(path, sizeof(path), "/Big/Game number %04u.gba", i);
+        EXPECT(f_open(&f, path, FA_WRITE | FA_CREATE_NEW) == FR_OK);
+        f_close(&f);
+    }
+    EXPECT(directory_read("/Big", &listing));
+    EXPECT(listing.files == 1500 && !listing.truncated);
+    EXPECT(strcmp(directory_name(0), "Game number 0000.gba") == 0);
+    EXPECT(strcmp(directory_name(1499), "Game number 1499.gba") == 0);
 }
 
 /** Write a 1 MiB ROM with @p marker at byte @p at (or none). */
@@ -796,7 +838,7 @@ static void check_natural_order(void)
     }
     EXPECT(directory_read("/Sort", &listing) && listing.files == 5);
     for (unsigned i = 0; i < listing.files && i < 5; i++) {
-        EXPECT(strcmp(directory_entry(i)->name, sorted[i]) == 0);
+        EXPECT(strcmp(directory_name(i), sorted[i]) == 0);
     }
 }
 
@@ -808,9 +850,9 @@ static void check_root_listing(void)
     EXPECT(directory_read("/", &listing));
     EXPECT(listing.folders == 5);
     EXPECT(listing.files == 8);
-    EXPECT(strcmp(directory_entry(0)->name, "ATTR") == 0);
-    EXPECT(strcmp(directory_entry(5)->name, "Advance Wars.gba") == 0);
-    EXPECT(directory_entry(5)->size == 4u << 20);
+    EXPECT(strcmp(directory_name(0), "ATTR") == 0);
+    EXPECT(strcmp(directory_name(5), "Advance Wars.gba") == 0);
+    EXPECT(directory_size(5) == 4u << 20);
     EXPECT(directory_is_folder(4) && !directory_is_folder(5));
     EXPECT(!directory_read("/missing", &listing));
 }
@@ -878,6 +920,8 @@ int main(int argc, char **argv)
 
     check_attribute_filter();
     check_world_names();
+    check_short_name_fallback();
+    check_large_folder();
     check_save_detection();
     check_save_backup();
     check_natural_order();

@@ -48,7 +48,7 @@ typedef enum {
 
 /** Contents of one row, filled in on demand by a ::ui_row_fn. */
 typedef struct {
-    char label[104];
+    char label[256]; /**< Long names scroll when selected. */
     char value[24];
     ui_row_kind_t kind;
     bool checked;

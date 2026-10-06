@@ -16,6 +16,7 @@
 #include "loader/game_info.h"
 #include "loader/library_files.h"
 #include "loader/save_files.h"
+#include "loader/sd_paths.h"
 #include "ui/app.h"
 #include "ui/theme.h"
 #include "ui/widgets.h"
@@ -62,7 +63,9 @@ typedef enum {
     OPT_NOR,
     OPT_NOR_HOOKS,
     OPT_SAVE_TYPE,
+    OPT_FAVORITE,
     OPT_CHEATS,
+    OPT_RESTORE,
     OPT_DELETE,
 } option_t;
 
@@ -70,12 +73,15 @@ typedef struct {
     app_t *app;
     const char *path;
     game_info_t info;
-    char name[DIR_NAME_LEN];
+    char name[FF_LFN_BUF + 1]; /**< Full file name (saves are named after it). */
     save_choice_t save_choice;
+    bool detected;             /**< detected_mode holds a cached scan result. */
+    save_mode_t detected_mode; /**< Save type found by scanning the game. */
+    bool favorite;             /**< In the favorites list. */
     bool has_cheats;
     char cheat_path[PATH_MAX_LEN];
     unsigned cheats_selected;
-    option_t options[8];
+    option_t options[10];
     unsigned option_count;
 } game_page_t;
 
@@ -102,6 +108,10 @@ static void game_row(void *ctx, unsigned index, ui_row_t *row)
         text_copy(row->label, sizeof(row->label), "Save");
         text_copy(row->value, sizeof(row->value), save_choice_name(page->save_choice));
         break;
+    case OPT_FAVORITE:
+        text_copy(row->label, sizeof(row->label), "Favorite");
+        text_copy(row->value, sizeof(row->value), page->favorite ? "Yes" : "No");
+        break;
     case OPT_CHEATS:
         text_copy(row->label, sizeof(row->label), "Cheats");
         if (page->cheats_selected) {
@@ -110,6 +120,9 @@ static void game_row(void *ctx, unsigned index, ui_row_t *row)
             text_copy(row->value, sizeof(row->value), "Off");
         }
         row->kind = ROW_CHEVRON;
+        break;
+    case OPT_RESTORE:
+        text_copy(row->label, sizeof(row->label), "Restore save");
         break;
     case OPT_DELETE:
         text_copy(row->label, sizeof(row->label), "Delete");
@@ -137,8 +150,14 @@ static void game_hints(const game_page_t *page, const ui_list_t *list)
     case OPT_SAVE_TYPE:
         ui_hints("<> Change|B Back");
         break;
+    case OPT_FAVORITE:
+        ui_hints("A Change|B Back");
+        break;
     case OPT_CHEATS:
         ui_hints("A Choose|B Back");
+        break;
+    case OPT_RESTORE:
+        ui_hints("A Restore|B Back");
         break;
     case OPT_DELETE:
         ui_hints("A Delete|B Back");
@@ -153,6 +172,11 @@ static void draw_game_page(game_page_t *page, ui_list_t *list)
     char size[16];
     char line2[32];
     save_mode_t mode = save_type_resolve(page->save_choice, page->info.game_code, page->info.size);
+    const char *save = save_mode_name(mode);
+    if (page->save_choice == SAVE_CHOICE_AUTO && !save_type_known(page->info.game_code)) {
+        /* Not in the database: found when the game is first started. */
+        save = page->detected ? save_mode_name(page->detected_mode) : "Found at start";
+    }
 
     strip_extension(title, sizeof(title), page->name);
     text_format_size(size, sizeof(size), page->info.size);
@@ -161,7 +185,7 @@ static void draw_game_page(game_page_t *page, ui_list_t *list)
     } else {
         text_copy(line1, sizeof(line1), size); /* homebrew often has no game code */
     }
-    snprintf(line2, sizeof(line2), "Save: %s", save_mode_name(mode));
+    snprintf(line2, sizeof(line2), "Save: %s", save);
     const char *const lines[] = {line1, line2};
 
     ui_title_bar(title, NULL);
@@ -186,6 +210,29 @@ static void start(game_page_t *page, boot_action_t action, bool bios_boot)
     } else {
         ui_message(to_nor ? "Can't Copy Game" : "Can't Start Game", boot_result_message(result));
     }
+    /* Starting may have detected the save type. */
+    page->detected =
+        save_detected_read(page->name, page->info.game_code, page->info.size, &page->detected_mode);
+}
+
+/** The favorites list lives in the scratch buffer while it is changed. */
+#define FAVORITES ((favorites_t *)g_scratch)
+_Static_assert(sizeof(favorites_t) <= SCRATCH_SIZE, "favorites must fit the scratch buffer");
+
+static void toggle_favorite(game_page_t *page)
+{
+    favorites_file_load(FAVORITES);
+    if (page->favorite) {
+        favorites_remove(FAVORITES, page->path);
+    } else if (!favorites_add(FAVORITES, page->path)) {
+        ui_message("Favorites Full", "Up to 64 games can be favorites. Remove one first.");
+        return;
+    }
+    if (favorites_file_save(FAVORITES)) {
+        page->favorite = !page->favorite;
+    } else {
+        ui_message("Can't Save", "The favorites could not be written to the SD card.");
+    }
 }
 
 static void explain_add_ons(void)
@@ -203,9 +250,13 @@ void ui_game_page(app_t *app, const char *path)
     memset(&page, 0, sizeof(page));
     page.app = app;
     page.path = path;
-    text_copy(page.name, sizeof(page.name), path_basename(path));
+    sd_long_name(path, page.name, sizeof(page.name));
     game_info_read(path, &page.info);
     page.save_choice = save_choice_read(page.name);
+    page.detected =
+        save_detected_read(page.name, page.info.game_code, page.info.size, &page.detected_mode);
+    favorites_file_load(FAVORITES);
+    page.favorite = favorites_find(FAVORITES, path) >= 0;
     g_cheat_code_count = 0;
     page.has_cheats =
         app->settings.cheats && cheat_file_find(path, page.cheat_path, sizeof(page.cheat_path));
@@ -215,8 +266,12 @@ void ui_game_page(app_t *app, const char *path)
     page.options[page.option_count++] = OPT_NOR;
     page.options[page.option_count++] = OPT_NOR_HOOKS;
     page.options[page.option_count++] = OPT_SAVE_TYPE;
+    page.options[page.option_count++] = OPT_FAVORITE;
     if (page.has_cheats) {
         page.options[page.option_count++] = OPT_CHEATS;
+    }
+    if (save_backup_exists(page.name)) {
+        page.options[page.option_count++] = OPT_RESTORE;
     }
     page.options[page.option_count++] = OPT_DELETE;
 
@@ -276,8 +331,20 @@ void ui_game_page(app_t *app, const char *path)
             break;
         case OPT_SAVE_TYPE:
             continue; /* changed with left / right */
+        case OPT_FAVORITE:
+            toggle_favorite(&page);
+            break;
         case OPT_CHEATS:
             page.cheats_selected = ui_cheats(page.cheat_path);
+            break;
+        case OPT_RESTORE:
+            if (ui_confirm("Restore Save",
+                           "Go back to the save from before the last start? The current save "
+                           "becomes the backup, so you can switch back.",
+                           "Restore") &&
+                !save_backup_restore(page.name)) {
+                ui_message("Can't Restore Save", "The save files could not be renamed.");
+            }
             break;
         case OPT_DELETE: {
             char question[160];

@@ -11,8 +11,8 @@
  *     ├── Settings ─── Date & Time, Sleep Key, Menu Key
  *     └── About
  *
- * At start-up the kernel opens "SD Card" directly; START in the SD browser
- * opens Recently Played.
+ * At start-up the kernel opens the SD card at the last played game (or the
+ * top folder); START in the SD browser opens Recently Played.
  */
 #ifndef UI_APP_H
 #define UI_APP_H
@@ -39,6 +39,8 @@ typedef struct {
     char sd_path[PATH_MAX_LEN];              /**< Folder shown by the SD browser. */
     app_position_t positions[APP_MAX_DEPTH]; /**< Per depth, root = 0. */
     unsigned depth;
+    /** Entry to select when the browser next opens @ref sd_path ("" = none). */
+    char select_name[PATH_MAX_LEN];
 } app_t;
 
 /** @brief Load settings from flash into @p app. */
@@ -56,6 +58,7 @@ void ui_run(app_t *app) __attribute__((noreturn));
 void ui_main_menu(app_t *app) __attribute__((noreturn));
 void ui_sd_browser(app_t *app);
 void ui_recent(app_t *app);
+void ui_favorites(app_t *app);
 void ui_nor_library(app_t *app);
 void ui_settings(app_t *app);
 void ui_about(app_t *app);

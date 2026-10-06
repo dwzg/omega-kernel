@@ -9,7 +9,7 @@ The files are upstream R0.15 except for:
 
 | File | Change |
 | --- | --- |
-| `ffconf.h` | Project configuration: long file names (`FF_USE_LFN 1`), exFAT, relative paths (`FF_FS_RPATH 2`), `f_gets`/`f_printf` (`FF_USE_STRFUNC 1`), code page 437. |
+| `ffconf.h` | Project configuration: long file names (`FF_USE_LFN 1`), exFAT, relative paths (`FF_FS_RPATH 2`), `f_gets`/`f_printf` (`FF_USE_STRFUNC 1`), UTF-8 file names on the API (`FF_LFN_UNICODE 2`), code page 437 for short names. |
 | `ff.c` | Two exported wrappers at the end of the file, `Get_NextCluster()` and `ClustToSect()`, which expose the internal `get_fat()` and `clst2sect()` functions. The kernel uses them to build the sector map of a file that the cartridge FPGA reads by itself (see `src/loader/fat_map.c`). |
 
 The disk I/O glue (`disk_read()`, `disk_write()`, `get_fattime()`, …) is

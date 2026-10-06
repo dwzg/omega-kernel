@@ -3,6 +3,7 @@
  * @brief Tests for fonts and drawing (gfx/), using the real font files.
  */
 #include "check.h"
+#include "core/utf8.h"
 #include "gfx/font.h"
 #include "gfx/gfx.h"
 
@@ -29,7 +30,7 @@ TEST(font_unknown_characters_use_question_mark)
     glyph_t q;
     glyph_t g;
     font_glyph(&FONT_BODY, '?', &q);
-    font_glyph(&FONT_BODY, 0xE9, &g); /* non-ASCII */
+    font_glyph(&FONT_BODY, 0xAC00, &g); /* Hangul: not in the font */
     CHECK(q.bitmap == g.bitmap);
     CHECK(q.advance > 0);
 }
@@ -55,17 +56,62 @@ TEST(text_fit_adds_ellipsis)
     CHECK_STR("...", out + len - 3);
 }
 
-TEST(pixel_font_is_sharp)
+TEST(font_has_accents_and_kana)
 {
-    /* Every glyph pixel is fully on or off: text has no blurred edges. */
-    for (unsigned c = 33; c < 127; c++) {
-        glyph_t g;
-        font_glyph(&FONT_BODY, (unsigned char)c, &g);
-        int row_bytes = (g.width + 1) / 2;
-        for (int i = 0; i < row_bytes * g.height; i++) {
-            uint8_t hi = g.bitmap[i] >> 4, lo = g.bitmap[i] & 15;
-            CHECK((hi == 0 || hi == 15) && (lo == 0 || lo == 15));
+    glyph_t q;
+    glyph_t g;
+    font_glyph(&FONT_BODY, '?', &q);
+    font_glyph(&FONT_BODY, 0xE9, &g); /* é */
+    CHECK(g.bitmap != q.bitmap);
+    font_glyph(&FONT_BODY, 0x30DD, &g); /* ポ */
+    CHECK(g.bitmap != q.bitmap);
+    CHECK(g.advance >= 10);
+    font_glyph(&FONT_TITLE, 0x30DD, &g); /* taken from the regular font */
+    CHECK(g.bitmap != q.bitmap);
+    font_glyph(&FONT_BODY, 0xAC00, &g); /* Hangul is not included */
+    CHECK(g.bitmap == q.bitmap);
+}
+
+TEST(fonts_have_kanji)
+{
+    glyph_t q;
+    glyph_t body;
+    glyph_t g;
+    font_glyph(&FONT_BODY, '?', &q);
+    font_glyph(&FONT_BODY, 0x65E5, &body); /* 日 */
+    CHECK(body.bitmap != q.bitmap);
+    CHECK(body.width >= 8);
+    font_glyph(&FONT_TITLE, 0x65E5, &g); /* the title font borrows the body's */
+    CHECK(g.bitmap == body.bitmap);
+    font_glyph(&FONT_SMALL, 0x65E5, &g);
+    font_glyph(&FONT_SMALL, '?', &q);
+    CHECK(g.bitmap != q.bitmap);
+    font_glyph(&FONT_BODY, 0x3005, &g); /* 々 */
+    font_glyph(&FONT_BODY, '?', &q);
+    CHECK(g.bitmap != q.bitmap);
+}
+
+TEST(text_width_counts_characters_not_bytes)
+{
+    glyph_t e;
+    font_glyph(&FONT_BODY, 0xE9, &e);
+    CHECK_EQ(e.advance, gfx_text_width(&FONT_BODY, "\xC3\xA9"));
+}
+
+TEST(text_fit_cuts_between_characters)
+{
+    char out[64];
+    const char *name = "Pok\xC3\xA9mon \xC3\x89meraude \xC3\xA9"
+                       "dition sp\xC3\xA9"
+                       "ciale";
+    for (int width = 20; width < 200; width += 7) {
+        gfx_text_fit(&FONT_BODY, name, width, out, sizeof(out));
+        const char *p = out;
+        uint32_t c;
+        while ((c = utf8_next(&p)) != 0) {
+            CHECK(c != UTF8_INVALID);
         }
+        CHECK(gfx_text_width(&FONT_BODY, out) <= width);
     }
 }
 
@@ -113,7 +159,10 @@ SUITE(gfx)
     RUN(font_unknown_characters_use_question_mark);
     RUN(text_width_adds_advances);
     RUN(text_fit_adds_ellipsis);
-    RUN(pixel_font_is_sharp);
+    RUN(font_has_accents_and_kana);
+    RUN(fonts_have_kanji);
+    RUN(text_width_counts_characters_not_bytes);
+    RUN(text_fit_cuts_between_characters);
     RUN(text_draws_inside_bounds);
     RUN(drawing_clips_at_screen_edges);
     RUN(fill_gradient_runs_top_to_bottom);

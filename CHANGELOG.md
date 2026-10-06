@@ -6,6 +6,39 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Start where you left off.** The kernel opens the folder of the game you
+  played last, with that game selected. **B** selects the folder you came
+  from.
+- **Box art in the list** (Settings, off by default): the SD card browser
+  shows the selected game's box art next to the list.
+- **Favorites.** Mark games on their page; the Favorites screen in the main
+  menu lists them by name.
+- **Jump by letter.** **Left / Right** in the SD card browser go to the
+  previous / next first letter.
+- **Save backups.** Before a game starts, its save is copied to
+  `/SAVER/<game>.bak`. **Restore save** on the game page goes back to it
+  (and can be undone the same way).
+- **Save type detection.** A game missing from the save type list is
+  checked for the name of its save chip the first time it is started, so ROM
+  hacks, prototypes and translations with new game codes save correctly
+  without choosing the type by hand.
+- **File names in other languages.** Accented letters (é, ü, ñ, ...), Greek,
+  Cyrillic and Japanese (kana and about 6,400 kanji) are shown instead of
+  `?`, and long names are kept in full (they scroll when selected).
+- **Bigger folders.** A folder lists up to 2,048 entries instead of 512 games
+  and 256 folders, in the same memory: names are kept in one shared pool.
+
+### Changed
+
+- Folders are sorted the way people expect: numbers by value ("Mega Man 2"
+  before "Mega Man 10") and accented letters with their base letter.
+
+### Fixed
+
+- Gauntlet: Dark Legacy (AYGE) uses 512 B EEPROM, not 8 KB, so it saves again.
+
 ## [2.0.0] - 2026-10-05
 
 A rewrite of the kernel with a new interface. Saves, save states, settings,

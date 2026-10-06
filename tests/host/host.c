@@ -13,13 +13,14 @@
 
 static uint16_t s_framebuffer[GFX_WIDTH * GFX_HEIGHT];
 
-static uint8_t s_font_body[16384];
-static uint8_t s_font_small[16384];
-static uint8_t s_font_title[16384];
+/* Large enough for fonts with kanji. */
+static uint8_t s_font_body[512 * 1024];
+static uint8_t s_font_small[512 * 1024];
+static uint8_t s_font_title[512 * 1024];
 
-const font_t FONT_BODY = {s_font_body};
-const font_t FONT_SMALL = {s_font_small};
-const font_t FONT_TITLE = {s_font_title};
+const font_t FONT_BODY = {s_font_body, NULL};
+const font_t FONT_SMALL = {s_font_small, NULL};
+const font_t FONT_TITLE = {s_font_title, &FONT_BODY};
 
 uint16_t *gfx_framebuffer(void)
 {

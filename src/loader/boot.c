@@ -56,6 +56,10 @@ static boot_result_t prepare_save(const char *game_name, save_mode_t mode, bool 
     }
 
     *save_size = save_file_size(path);
+    if (*save_size > 0 && starting) {
+        progress_status(progress, "Backing up save");
+        save_file_backup(game_name);
+    }
     if (*save_size == 0) {
         *save_size = save_type_file_size(mode);
         if (*save_size == 0) {
@@ -117,11 +121,10 @@ static boot_result_t play_clean(const boot_request_t *req, const game_info_t *in
     return BOOT_OK;
 }
 
-static boot_result_t play_with_hooks(const boot_request_t *req, const game_info_t *info,
-                                     save_mode_t save_mode, const settings_t *settings,
-                                     const progress_t *progress)
+static boot_result_t play_with_hooks(const boot_request_t *req, const char *name,
+                                     const game_info_t *info, save_mode_t save_mode,
+                                     const settings_t *settings, const progress_t *progress)
 {
-    const char *name = path_basename(req->path);
     bool any_hook = settings_any_hook(settings);
     bool store_cache = false;
 
@@ -203,7 +206,10 @@ static boot_result_t copy_to_nor(const boot_request_t *req, const game_info_t *i
 boot_result_t boot_sd_game(const boot_request_t *req, const settings_t *settings,
                            const progress_t *progress)
 {
-    const char *name = path_basename(req->path);
+    /* Saves and other companion files are named after the full name, also
+     * when the game was opened by its 8.3 short name. */
+    char name[FF_LFN_BUF + 1];
+    sd_long_name(req->path, name, sizeof(name));
     bool starting = req->action == BOOT_PLAY || req->action == BOOT_PLAY_WITH_HOOKS;
     game_info_t info;
     boot_result_t r;
@@ -225,7 +231,8 @@ boot_result_t boot_sd_game(const boot_request_t *req, const settings_t *settings
     if (save_choice_read(name) != req->save_choice) {
         save_choice_write(name, req->save_choice);
     }
-    save_mode_t save_mode = save_type_resolve(req->save_choice, info.game_code, info.size);
+    save_mode_t save_mode =
+        save_mode_for_game(req->save_choice, name, info.game_code, info.size, req->path, progress);
 
     uint32_t save_size;
     r = prepare_save(name, save_mode, starting, &save_size, progress);
@@ -241,7 +248,7 @@ boot_result_t boot_sd_game(const boot_request_t *req, const settings_t *settings
     if (req->action == BOOT_PLAY) {
         return play_clean(req, &info, settings, progress);
     }
-    return play_with_hooks(req, &info, save_mode, settings, progress);
+    return play_with_hooks(req, name, &info, save_mode, settings, progress);
 }
 
 boot_result_t boot_nor_game(unsigned index, bool bios_boot, const settings_t *settings,
@@ -253,8 +260,8 @@ boot_result_t boot_nor_game(unsigned index, bool bios_boot, const settings_t *se
 
     fat_map_reset();
     memcpy(game_code, entry->header_title + 0xC, 4);
-    save_mode_t save_mode =
-        save_type_resolve(save_choice_read(entry->filename), game_code, entry->size);
+    save_mode_t save_mode = save_mode_for_game(save_choice_read(entry->filename), entry->filename,
+                                               game_code, entry->size, NULL, NULL);
 
     boot_result_t r = prepare_save(entry->filename, save_mode, true, &save_size, progress);
     if (r != BOOT_OK) {

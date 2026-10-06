@@ -10,7 +10,9 @@ and cartridges can be moved between the two.
 /                         your games (*.gba), in any folders you like
 ├── SAVER/                save files, save-type choices, recently played
 │   ├── <game>.sav
+│   ├── <game>.bak        the save from before the last start
 │   ├── <game>.mde
+│   ├── Favorites.txt
 │   └── Recently play.txt
 ├── RTS/                  save states: <game>.rts
 ├── PATCH/                patch caches: <game>.pat
@@ -25,8 +27,11 @@ and cartridges can be moved between the two.
 `/GBA/RPG/Golden Sun.gba` is `/SAVER/Golden Sun.sav`. Games with the same file
 name in different folders therefore share their save.
 
-Paths are limited to 255 characters. File names may be long names; characters
-outside ASCII are shown as `?`.
+Paths are limited to 255 characters. File names may be long names in any
+language. The kernel shows Latin letters with accents, Greek, Cyrillic and
+Japanese (kana and about 6,400 kanji); other characters are shown as `?`. A name that would
+make the whole path longer than 255 bytes is opened through its 8.3 short
+name, but its save and other files still use the full name.
 
 ## Save files (`/SAVER/*.sav`)
 
@@ -60,12 +65,28 @@ which only works if it has at most 32 fragments.
 | 4 | Flash 64K |
 | 5 | Flash 128K |
 
-The file is only written when the choice changes. A missing file means Auto.
+The file is written when the choice changes, and when the save type of a
+game that is not in the database has been detected. A missing file means
+Auto. The other bytes hold the detection result (the original kernel ignores
+them):
+
+| Byte | Meaning |
+| --- | --- |
+| 1 | `D` when bytes 2–11 are valid |
+| 2 | Detected save mode (the FPGA code, e.g. `0x31` = Flash 128K, `0x10` = none found) |
+| 4–7 | Game code the result belongs to |
+| 8–11 | ROM size it belongs to (little-endian); a different file is scanned again |
 
 ## Recently played (`/SAVER/Recently play.txt`)
 
 Plain text, one absolute path per line, newest first, at most ten lines.
 Lines that don't start with `/` are ignored.
+
+## Favorites (`/SAVER/Favorites.txt`)
+
+Plain text, one absolute path per line, at most 64 lines, in the order they
+were added (the screen sorts them by name). Lines that don't start with `/`
+are ignored.
 
 ## Save states (`/RTS/*.rts`)
 

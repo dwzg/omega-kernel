@@ -47,7 +47,8 @@ enum {
     SETTINGS_WORD_MENU_KEYS = 8,  /* 8, 9, 10 */
     SETTINGS_WORD_FAST_PATCH = 11,
     SETTINGS_WORD_THUMBNAILS = 12,
-    SETTINGS_WORD_GAME_RTC = 13
+    SETTINGS_WORD_GAME_RTC = 13,
+    SETTINGS_WORD_LIST_ART = 14 /* new in 2.1; the original kernel used 0..13 */
 };
 
 /**
@@ -80,6 +81,7 @@ typedef struct {
     bool fast_patch;                    /**< Use the patch location database. */
     bool thumbnails;                    /**< Legacy setting, preserved but unused. */
     bool game_rtc;                      /**< Games can see the cartridge clock. */
+    bool list_art;                      /**< Box art next to the SD card list. */
     uint8_t sleep_keys[HOTKEY_BUTTONS]; /**< Sleep (or save-state) hotkey. */
     uint8_t menu_keys[HOTKEY_BUTTONS];  /**< Menu (or load-state) hotkey. */
 } settings_t;

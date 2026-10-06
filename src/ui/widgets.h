@@ -48,7 +48,7 @@ typedef enum {
 
 /** Contents of one row, filled in on demand by a ::ui_row_fn. */
 typedef struct {
-    char label[104];
+    char label[256]; /**< Long names scroll when selected. */
     char value[24];
     ui_row_kind_t kind;
     bool checked;
@@ -104,6 +104,9 @@ void ui_list_redraw_selected(ui_list_t *list);
  * @return What the screen should react to.
  */
 ui_list_event_t ui_list_update(ui_list_t *list, const input_t *input);
+
+/** @brief Select row @p index (scrolling as needed) and redraw what changed. */
+void ui_list_jump(ui_list_t *list, unsigned index);
 
 /** @brief The selected row index. */
 static inline unsigned ui_list_selected(const ui_list_t *list)

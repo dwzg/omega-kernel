@@ -50,6 +50,7 @@ Metrics and colours are in `src/ui/theme.h`.
 | --- | --- |
 | `ui_title_bar()`, `ui_tick()` | Title bar with clock; `ui_tick()` keeps the clock current |
 | `ui_hints()` | The button hint bar: `"A Open|B Back|START Recent"`, with `<>` and `^v` for the d-pad |
+| `ui_list_jump()` | Select a row far away (letter jump), redrawing only what changed |
 | `ui_list_t` | Scrolling list. Rows are produced on demand by a callback filling a `ui_row_t` (label, value, kind, checked, dimmed), so lists of any length cost no memory. Handles up/down, L/R paging, key repeat, headings that can't be selected, and scrolling of labels that don't fit |
 | `ui_message()` | Message; A or B closes it |
 | `ui_confirm()` | Question; A does the action, B cancels |
@@ -62,7 +63,7 @@ heading (small grey, not selectable) and check (shows a check mark).
 
 | File | Screens |
 | --- | --- |
-| `menu_screens.c` | Main menu, SD card browser, recently played |
+| `menu_screens.c` | Main menu, SD card browser, favorites, recently played |
 | `game_screens.c` | Game page, cheat selection |
 | `nor_screens.c` | NOR library, NOR game page, erase |
 | `settings_screens.c` | Settings, hotkey and clock editors, About |
@@ -77,8 +78,7 @@ positions per folder depth) lives in `app_t`.
 
 The display runs in mode 3: a 240 × 160 frame buffer of 15-bit colours.
 `gfx.c` provides fills, frames, image blits (full and half size) and text.
-Glyphs are stored with 4-bit coverage, so the renderer could blend
-anti-aliased fonts, but the pixel fonts only use fully on or off.
+Text is UTF-8 (`core/utf8.c`); glyphs are 1 bit per pixel.
 
 Lists redraw only what changes, and never show anything half-drawn:
 
@@ -86,7 +86,7 @@ Lists redraw only what changes, and never show anything half-drawn:
   buffer, `gfx_offscreen_begin()`) and copied to the screen in one go. The
   title bar is built the same way.
 - When a list scrolls by a row, the rows that stay visible are moved
-  (`gfx_move_rows()`) and only the row that comes into view and the two whose
+  (`gfx_move_area()`, also for lists in a column) and only the row that comes into view and the two whose
   selection changed are drawn. The simulator checks that this gives exactly
   the same pixels as a full redraw.
 - A selected name that is too long scrolls by one pixel per frame, resting
@@ -96,16 +96,23 @@ Lists redraw only what changes, and never show anything half-drawn:
 ## Fonts
 
 The fonts are BDF bitmap fonts in `assets/fonts/src/` (Galmuri by Lee Minseo,
-SIL Open Font License, reduced to printable ASCII). `tools/make_font.py`
-converts them, as listed in `assets/fonts/fonts.txt`:
+SIL Open Font License, reduced to the characters the kernel shows).
+`tools/make_font.py` converts them, as listed in `assets/fonts/fonts.txt`:
 
 ```sh
 python3 tools/make_font.py --all          # regenerate
 python3 tools/make_font.py --all --check  # what CI runs
 ```
 
-The format ("OFNT") is documented at the top of the script. Fonts cover
-printable ASCII; other characters are drawn as `?`.
+The format ("OFN3") is documented at the top of the script. Fonts cover
+ASCII, Latin-1 and Latin Extended-A (accented letters), Greek, Cyrillic,
+common punctuation, Japanese kana and full-width ASCII (`RANGES` in the
+script). The body and small fonts also have the kanji Galmuri provides (the
+JIS sets, `CJK_RANGES`); the bold title font has none and borrows them from
+the body font at run time (`font_t.fallback`). Only the characters a font
+has are stored, as runs found by binary search. Other characters are drawn
+as `?`. To add a range, extend `RANGES`, subset
+the full Galmuri BDF files again with `--subset` and run `--all`.
 
 ## Changing the interface
 

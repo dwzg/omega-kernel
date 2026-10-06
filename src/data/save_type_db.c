@@ -771,7 +771,7 @@ const save_type_db_entry_t save_type_db[] = {
 {"AJ4P",0x00},//0768 - Earthworm Jim 2(EU).zip
 {"AJGF",0x22},//0769 - Tarzan - L'Appel de la Jungle(FR).zip
 {"AYCE",0x22},//0770 - Phantasy Star Collection(US).zip
-{"AYGE",0x22},//0771 - Gauntlet - Dark Legacy(US).zip
+{"AYGE",0x21},//0771 - Gauntlet - Dark Legacy(US).zip (EEPROM 512, was 8K)
 {"AEYE",0x00},//0772 - Kim Possible - Revenge of Monkey Fist(US).zip
 {"ARME",0x22},//0773 - Minority Report - Everybody Runs(UE).zip
 {"AARE",0x22},//0774 - Altered Beast - Guardian of the Realms(US).zip

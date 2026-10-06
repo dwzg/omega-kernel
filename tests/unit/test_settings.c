@@ -44,7 +44,7 @@ TEST(settings_round_trip_keeps_unknown_words)
     CHECK_EQ(1, words[SETTINGS_WORD_CHEATS]);
     CHECK_EQ(0, words[SETTINGS_WORD_FAST_PATCH]);
     CHECK_EQ(BUTTON_A, words[SETTINGS_WORD_MENU_KEYS + 2]);
-    for (unsigned i = SETTINGS_WORD_GAME_RTC + 1; i < SETTINGS_WORDS; i++) {
+    for (unsigned i = SETTINGS_WORD_LIST_ART + 1; i < SETTINGS_WORDS; i++) {
         CHECK_EQ(0x1000 + i, words[i]);
     }
 

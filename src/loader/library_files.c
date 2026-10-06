@@ -56,6 +56,36 @@ bool recent_file_save(const recent_list_t *list)
     return true;
 }
 
+/* ------------------------------------------------------------- favorites -- */
+
+void favorites_file_load(favorites_t *list)
+{
+    FIL file;
+    char line[RECENT_LINE_LEN];
+
+    favorites_clear(list);
+    if (f_open(&file, SD_FILE_FAVORITES, FA_READ) != FR_OK) {
+        return;
+    }
+    while (f_gets(line, sizeof(line), &file) != NULL && favorites_append_line(list, line)) {
+    }
+    f_close(&file);
+}
+
+bool favorites_file_save(const favorites_t *list)
+{
+    FIL file;
+    if (!sd_ensure_folder(SD_DIR_SAVES) ||
+        f_open(&file, SD_FILE_FAVORITES, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) {
+        return false;
+    }
+    for (unsigned i = 0; i < list->count; i++) {
+        f_printf(&file, "%s\n", list->entries[i]);
+    }
+    f_close(&file);
+    return true;
+}
+
 /* ----------------------------------------------------------- cheat files -- */
 
 static bool file_exists(const char *path)
@@ -79,8 +109,9 @@ bool cheat_file_find(const char *game_path, char *out, size_t out_size)
     }
 
     /* 1. A cheat file named after the game. */
-    if (sd_companion_path(out, out_size, SD_DIR_CHEATS, path_basename(game_path), "cht") &&
-        file_exists(out)) {
+    char name[FF_LFN_BUF + 1];
+    sd_long_name(game_path, name, sizeof(name));
+    if (sd_companion_path(out, out_size, SD_DIR_CHEATS, name, "cht") && file_exists(out)) {
         return true;
     }
 
@@ -102,21 +133,43 @@ bool cheat_file_find(const char *game_path, char *out, size_t out_size)
             continue;
         }
         char folder[32];
-        char name[32];
-        cht_library_paths(pairs[i + 1], folder, sizeof(folder), name, sizeof(name));
-        return path_join(out, out_size, folder, name) && file_exists(out);
+        char file[32];
+        cht_library_paths(pairs[i + 1], folder, sizeof(folder), file, sizeof(file));
+        return path_join(out, out_size, folder, file) && file_exists(out);
     }
     return false;
 }
 
 static void reader_rewind(void *ctx)
 {
-    f_lseek((FIL *)ctx, 0);
+    cheat_file_t *cf = ctx;
+    f_lseek(&cf->file, 0);
+    cf->buffered = cf->pos = 0;
 }
 
+/** Read one line of raw bytes, like f_gets() but without any conversion. */
 static bool reader_read_line(void *ctx, char *buf, size_t size)
 {
-    return f_gets(buf, (int)size, (FIL *)ctx) != NULL;
+    cheat_file_t *cf = ctx;
+    size_t n = 0;
+    while (n + 1 < size) {
+        if (cf->pos == cf->buffered) {
+            UINT got = 0;
+            f_read(&cf->file, cf->buffer, sizeof(cf->buffer), &got);
+            cf->buffered = got;
+            cf->pos = 0;
+            if (got == 0) {
+                break; /* end of file */
+            }
+        }
+        char c = cf->buffer[cf->pos++];
+        buf[n++] = c;
+        if (c == '\n') {
+            break;
+        }
+    }
+    buf[n] = '\0';
+    return n > 0;
 }
 
 bool cheat_file_open(cheat_file_t *cf, const char *path)
@@ -124,7 +177,8 @@ bool cheat_file_open(cheat_file_t *cf, const char *path)
     if (f_open(&cf->file, path, FA_READ) != FR_OK) {
         return false;
     }
-    cf->reader.ctx = &cf->file;
+    cf->buffered = cf->pos = 0;
+    cf->reader.ctx = cf;
     cf->reader.rewind = reader_rewind;
     cf->reader.read_line = reader_read_line;
     return true;

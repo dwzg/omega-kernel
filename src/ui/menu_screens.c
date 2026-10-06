@@ -10,7 +10,9 @@
 #include "core/text.h"
 #include "loader/buffers.h"
 #include "loader/directory.h"
+#include "loader/game_info.h"
 #include "loader/library_files.h"
+#include "loader/sd_paths.h"
 #include "ui/app.h"
 #include "ui/theme.h"
 #include "ui/widgets.h"
@@ -26,12 +28,20 @@ static void display_name(char *out, size_t size, const char *name)
 
 /* ----------------------------------------------------------- main menu -- */
 
-typedef enum { MAIN_SD, MAIN_NOR, MAIN_RECENT, MAIN_SETTINGS, MAIN_ABOUT, MAIN_COUNT } main_item_t;
+typedef enum {
+    MAIN_SD,
+    MAIN_FAVORITES,
+    MAIN_NOR,
+    MAIN_RECENT,
+    MAIN_SETTINGS,
+    MAIN_ABOUT,
+    MAIN_COUNT
+} main_item_t;
 
 static void main_row(void *ctx, unsigned index, ui_row_t *row)
 {
     static const char *const LABELS[MAIN_COUNT] = {
-        "SD Card", "NOR Flash", "Recently Played", "Settings", "About",
+        "SD Card", "Favorites", "NOR Flash", "Recently Played", "Settings", "About",
     };
     (void)ctx;
     text_copy(row->label, sizeof(row->label), LABELS[index]);
@@ -64,6 +74,9 @@ void ui_main_menu(app_t *app)
         case MAIN_SD:
             ui_sd_browser(app);
             break;
+        case MAIN_FAVORITES:
+            ui_favorites(app);
+            break;
         case MAIN_NOR:
             ui_nor_library(app);
             break;
@@ -82,18 +95,65 @@ void ui_main_menu(app_t *app)
 
 /* ---------------------------------------------------------- SD browser -- */
 
+/* Split view (Settings > Box art in list): the list on the left, the box
+ * art of the selected game at half size on the right. */
+#define ART_LIST_WIDTH 144
+#define ART_PANEL_WIDTH (GFX_WIDTH - ART_LIST_WIDTH)
+#define ART_X (ART_LIST_WIDTH + (ART_PANEL_WIDTH - THUMBNAIL_WIDTH / 2) / 2)
+#define ART_Y (CONTENT_TOP + 10)
+/** Frames the selection must rest before the box art is read from the card. */
+#define ART_DELAY 8
+
 static void browser_row(void *ctx, unsigned index, ui_row_t *row)
 {
-    (void)ctx;
-    const dir_entry_t *e = directory_entry(index);
+    const app_t *app = ctx;
     if (directory_is_folder(index)) {
-        text_copy(row->label, sizeof(row->label), e->name);
+        text_copy(row->label, sizeof(row->label), directory_name(index));
         row->kind = ROW_CHEVRON;
     } else {
-        display_name(row->label, sizeof(row->label), e->name);
-        text_format_size(row->value, sizeof(row->value), e->size);
+        display_name(row->label, sizeof(row->label), directory_name(index));
+        if (!app->settings.list_art) { /* the panel shows the size */
+            text_format_size(row->value, sizeof(row->value), directory_size(index));
+        }
         row->kind = ROW_PLAIN;
     }
+}
+
+/** Draw the box art panel for entry @p index of the folder @p folder, or
+ * an empty panel if @p index is negative or a folder. */
+static void draw_art_panel(const char *folder, int index)
+{
+    gfx_fill(ART_LIST_WIDTH, CONTENT_TOP, ART_PANEL_WIDTH, CONTENT_HEIGHT, COLOR_BACKGROUND);
+    gfx_fill(ART_LIST_WIDTH, CONTENT_TOP, 1, CONTENT_HEIGHT, COLOR_RULE);
+    if (index < 0 || directory_is_folder((unsigned)index)) {
+        return;
+    }
+
+    char path[PATH_MAX_LEN];
+    game_info_t info;
+    const uint16_t *pixels = NULL;
+    bool known = path_join(path, sizeof(path), folder, directory_open_name((unsigned)index)) &&
+                 game_info_read(path, &info) && info.game_code[0] > ' ';
+    if (known) {
+        pixels = thumbnail_load(info.game_code);
+    }
+
+    int w = THUMBNAIL_WIDTH / 2;
+    int h = THUMBNAIL_HEIGHT / 2;
+    gfx_frame(ART_X - 1, ART_Y - 1, w + 2, h + 2, COLOR_RULE);
+    if (pixels) {
+        gfx_blit_half(ART_X, ART_Y, w, h, pixels, THUMBNAIL_WIDTH);
+    } else {
+        gfx_fill(ART_X, ART_Y, w, h, COLOR_PLACEHOLDER);
+    }
+    char size[16];
+    int y = ART_Y + h + 6;
+    if (known) {
+        gfx_text(&FONT_SMALL, ART_X, y, COLOR_TEXT_MUTED, info.game_code, w, ALIGN_LEFT);
+        y += font_line_height(&FONT_SMALL);
+    }
+    text_format_size(size, sizeof(size), directory_size((unsigned)index));
+    gfx_text(&FONT_SMALL, ART_X, y, COLOR_TEXT_MUTED, size, w, ALIGN_LEFT);
 }
 
 static const char *folder_title(const char *path)
@@ -109,9 +169,11 @@ static void browser_hints(const app_t *app, const ui_list_t *list)
     if (list->view.count == 0) {
         ui_hints(at_root ? "B Menu|START Recent" : "B Back|START Recent");
     } else if (folder) {
-        ui_hints(at_root ? "A Open|B Menu|START Recent" : "A Open|B Back|START Recent");
+        ui_hints(at_root ? "A Open|B Menu|<> A-Z|START Recent"
+                         : "A Open|B Back|<> A-Z|START Recent");
     } else {
-        ui_hints(at_root ? "A Select|B Menu|START Recent" : "A Select|B Back|START Recent");
+        ui_hints(at_root ? "A Select|B Menu|<> A-Z|START Recent"
+                         : "A Select|B Back|<> A-Z|START Recent");
     }
 }
 
@@ -130,8 +192,21 @@ void ui_sd_browser(app_t *app)
         app_position_t *pos =
             &app->positions[app->depth < APP_MAX_DEPTH ? app->depth : APP_MAX_DEPTH - 1];
 
-        ui_list_init(&list, total, 0, browser_row, NULL, CONTENT_TOP, ROW_HEIGHT);
+        bool art = app->settings.list_art;
+        ui_list_init(&list, total, 0, browser_row, app, CONTENT_TOP, ROW_HEIGHT);
+        if (art) {
+            ui_list_set_column(&list, 0, ART_LIST_WIDTH);
+        }
         list.empty_text = "No games in this folder.";
+        if (app->select_name[0]) {
+            /* Select the last played game, or the folder we came back from. */
+            int found = directory_find(app->select_name);
+            if (found >= 0) {
+                pos->selected = (uint16_t)found;
+                pos->top = (uint16_t)(found >= LIST_ROWS / 2 ? found - LIST_ROWS / 2 : 0);
+            }
+            app->select_name[0] = '\0';
+        }
         list_view_restore(&list.view, pos->selected, pos->top);
 
         bool reload = false;
@@ -141,14 +216,28 @@ void ui_sd_browser(app_t *app)
             ui_title_bar(folder_title(app->sd_path), count_text);
             browser_hints(app, &list);
             ui_list_draw(&list);
+            if (art) {
+                draw_art_panel(app->sd_path, -1);
+            }
 
             bool redraw = false;
+            unsigned rest = 0; /* frames the selection has not moved */
+            bool art_shown = false;
             while (!redraw && !reload) {
                 platform_wait_vblank();
                 ui_tick();
                 platform_read_input(&input);
                 unsigned before = ui_list_selected(&list);
-                ui_list_event_t event = ui_list_update(&list, &input);
+                ui_list_event_t event = UI_LIST_IDLE;
+                if (total > 0 && (input.repeated & (BTN_LEFT | BTN_RIGHT))) {
+                    /* Left / right: previous / next first letter. */
+                    unsigned target = directory_jump(before, (input.repeated & BTN_RIGHT) ? 1 : -1);
+                    if (target != before) {
+                        ui_list_jump(&list, target);
+                    }
+                } else {
+                    event = ui_list_update(&list, &input);
+                }
                 pos->selected = (uint16_t)list.view.selected;
                 pos->top = (uint16_t)list.view.top;
                 if (ui_list_selected(&list) != before) {
@@ -156,6 +245,14 @@ void ui_sd_browser(app_t *app)
                              total);
                     ui_title_bar(folder_title(app->sd_path), count_text);
                     browser_hints(app, &list);
+                    rest = 0;
+                    if (art && art_shown) {
+                        draw_art_panel(app->sd_path, -1); /* the art follows once it rests */
+                        art_shown = false;
+                    }
+                } else if (art && total > 0 && ++rest == ART_DELAY) {
+                    draw_art_panel(app->sd_path, (int)ui_list_selected(&list));
+                    art_shown = true;
                 }
 
                 if (input.pressed & BTN_START) {
@@ -165,6 +262,8 @@ void ui_sd_browser(app_t *app)
                     if (strcmp(app->sd_path, "/") == 0) {
                         return;
                     }
+                    text_copy(app->select_name, sizeof(app->select_name),
+                              path_basename(app->sd_path));
                     path_to_parent(app->sd_path);
                     if (app->depth > 0) {
                         app->depth--;
@@ -173,8 +272,7 @@ void ui_sd_browser(app_t *app)
                 } else if (event == UI_LIST_ACTIVATE) {
                     unsigned index = ui_list_selected(&list);
                     char path[PATH_MAX_LEN];
-                    if (!path_join(path, sizeof(path), app->sd_path,
-                                   directory_entry(index)->name)) {
+                    if (!path_join(path, sizeof(path), app->sd_path, directory_open_name(index))) {
                         ui_message("Can't Open", "The path is too long.");
                         redraw = true;
                     } else if (directory_is_folder(index)) {
@@ -197,10 +295,13 @@ void ui_sd_browser(app_t *app)
 
 /* ------------------------------------------------------ recently played -- */
 
+/* Full names of the recently played games (a path may use a short name). */
+static char s_recent_names[RECENT_MAX][DIR_NAME_LEN];
+
 static void recent_row(void *ctx, unsigned index, ui_row_t *row)
 {
     (void)ctx;
-    display_name(row->label, sizeof(row->label), path_basename(g_recent.entries[index]));
+    display_name(row->label, sizeof(row->label), s_recent_names[index]);
     row->kind = ROW_CHEVRON;
 }
 
@@ -213,6 +314,9 @@ void ui_recent(app_t *app)
     for (;;) {
         platform_set_key_repeat(LIST_REPEAT_DELAY, LIST_REPEAT_RATE);
         recent_file_load(&g_recent);
+        for (unsigned i = 0; i < g_recent.count; i++) {
+            sd_long_name(g_recent.entries[i], s_recent_names[i], sizeof(s_recent_names[i]));
+        }
         ui_title_bar("Recently Played", NULL);
         ui_hints("A Select|B Back");
         ui_list_init(&list, g_recent.count, selected, recent_row, NULL, CONTENT_TOP, ROW_HEIGHT);
@@ -233,6 +337,79 @@ void ui_recent(app_t *app)
         selected = ui_list_selected(&list);
         char path[RECENT_ENTRY_LEN];
         text_copy(path, sizeof(path), g_recent.entries[selected]);
+        ui_game_page(app, path);
+    }
+}
+
+/* ------------------------------------------------------------ favorites -- */
+
+/** The favorites screen keeps its list in the scratch buffer. */
+typedef struct {
+    favorites_t list;
+    char names[FAVORITES_MAX][DIR_NAME_LEN]; /**< Full file names. */
+    uint8_t order[FAVORITES_MAX];            /**< Indexes sorted by name. */
+} favorites_screen_t;
+
+#define FAVORITES_SCREEN ((favorites_screen_t *)g_scratch)
+_Static_assert(sizeof(favorites_screen_t) <= SCRATCH_SIZE, "favorites must fit the scratch buffer");
+
+static void favorites_row(void *ctx, unsigned index, ui_row_t *row)
+{
+    (void)ctx;
+    const favorites_screen_t *f = FAVORITES_SCREEN;
+    display_name(row->label, sizeof(row->label), f->names[f->order[index]]);
+    row->kind = ROW_CHEVRON;
+}
+
+/** Load the favorites and sort them by name (insertion sort: at most 64). */
+static void favorites_load_sorted(void)
+{
+    favorites_screen_t *f = FAVORITES_SCREEN;
+    favorites_file_load(&f->list);
+    for (unsigned i = 0; i < f->list.count; i++) {
+        sd_long_name(f->list.entries[i], f->names[i], sizeof(f->names[i]));
+        unsigned j = i;
+        while (j > 0 && text_compare_names(f->names[f->order[j - 1]], f->names[i]) > 0) {
+            f->order[j] = f->order[j - 1];
+            j--;
+        }
+        f->order[j] = (uint8_t)i;
+    }
+}
+
+void ui_favorites(app_t *app)
+{
+    ui_list_t list;
+    input_t input;
+    unsigned selected = 0;
+
+    for (;;) {
+        platform_set_key_repeat(LIST_REPEAT_DELAY, LIST_REPEAT_RATE);
+        favorites_load_sorted();
+        unsigned count = FAVORITES_SCREEN->list.count;
+        ui_title_bar("Favorites", NULL);
+        ui_hints(count ? "A Select|B Back" : "B Back");
+        ui_list_init(&list, count, selected < count ? selected : 0, favorites_row, NULL,
+                     CONTENT_TOP, ROW_HEIGHT);
+        list.empty_text = "No favorites yet. Add games on their page.";
+        ui_list_draw(&list);
+
+        ui_list_event_t event;
+        do {
+            platform_wait_vblank();
+            ui_tick();
+            platform_read_input(&input);
+            event = ui_list_update(&list, &input);
+        } while (event == UI_LIST_IDLE);
+
+        if (event == UI_LIST_BACK) {
+            return;
+        }
+        selected = ui_list_selected(&list);
+        /* The game page reuses the scratch buffer: copy the path out. */
+        char path[RECENT_ENTRY_LEN];
+        text_copy(path, sizeof(path),
+                  FAVORITES_SCREEN->list.entries[FAVORITES_SCREEN->order[selected]]);
         ui_game_page(app, path);
     }
 }

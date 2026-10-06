@@ -11,6 +11,7 @@
 #include <stdint.h>
 
 #include "core/cheat.h"
+#include "core/favorites.h"
 #include "core/recent.h"
 #include "ff.h"
 
@@ -23,6 +24,12 @@ void recent_file_load(recent_list_t *list);
 
 /** @brief Write the list back to `/SAVER/Recently play.txt`. */
 bool recent_file_save(const recent_list_t *list);
+
+/** @brief Load `/SAVER/Favorites.txt`. */
+void favorites_file_load(favorites_t *list);
+
+/** @brief Write the list back to `/SAVER/Favorites.txt`. */
+bool favorites_file_save(const favorites_t *list);
 
 /**
  * @brief Find the cheat file for a game: `/CHEAT/<name>.cht`, or the shared
@@ -37,6 +44,11 @@ bool cheat_file_find(const char *game_path, char *out, size_t out_size);
 typedef struct {
     FIL file;
     cht_reader_t reader;
+    /* Read buffer: cheat files are read as raw bytes, without FatFs's text
+     * conversion, since older files are not always valid UTF-8. */
+    char buffer[256];
+    unsigned buffered; /**< Bytes in @ref buffer. */
+    unsigned pos;      /**< Next byte to return. */
 } cheat_file_t;
 
 /** @brief Open a cheat file for parsing with the functions in cheat.h. */

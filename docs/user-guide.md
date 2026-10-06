@@ -8,7 +8,7 @@ For the folders the kernel creates on the SD card, see
 - [Controls](#controls)
 - [The screens](#the-screens)
 - [Starting games](#starting-games)
-- [Save types](#save-types)
+- [Save types](#save-types) and [backups](#save-backups)
 - [In-game add-ons](#in-game-add-ons)
 - [Cheats](#cheats)
 - [NOR flash](#nor-flash)
@@ -23,7 +23,8 @@ For the folders the kernel creates on the SD card, see
 2. Copy your `.gba` games onto it. Folders are fine, as deep as you like.
 3. To install or update the kernel, put `ezkernel.bin` in the root of the card,
    hold **R** while turning the GBA on and confirm.
-4. Turn the GBA on. The kernel opens the SD card directly.
+4. Turn the GBA on. The kernel opens the SD card at the game you played last
+   (or at the top folder the first time).
 
 The kernel needs no other files. It creates the folders it needs (`/SAVER`,
 `/RTS`, `/PATCH`) the first time they are used.
@@ -40,7 +41,7 @@ and what they do; it changes with the selected item. In general:
 | **A** | Open the selected item, or choose it |
 | **B** | Go back one screen |
 | **START** | In the SD card browser: open Recently Played |
-| **Left / Right** | Change a value: the save type on a game page, On / Off in Settings |
+| **Left / Right** | In the SD card browser: jump to the previous / next first letter. Elsewhere: change a value (the save type on a game page, On / Off in Settings) |
 | **Hold L + A** | Start a game through the BIOS (Nintendo logo) instead of directly |
 
 The clock in the top-right corner is the cartridge's real-time clock.
@@ -50,26 +51,44 @@ The clock in the top-right corner is the cartridge's real-time clock.
 ```
 Main menu
 ├── SD Card ────── folders ─── Game page ─── Cheats
+├── Favorites ──────────────── Game page
 ├── NOR Flash ──── Game page (NOR)
 ├── Recently Played ────────── Game page
 ├── Settings ───── Date & Time, Sleep / Menu hotkeys
 └── About
 ```
 
-The kernel starts in **SD Card**. Press **B** in the top folder to reach the
-main menu.
+The kernel starts in **SD Card**, in the folder of the game you played last,
+with that game selected. Press **B** to go up; in the top folder **B** opens
+the main menu.
 
 ### SD card browser
 
 <img src="images/sd-root.png" width="360" alt="SD card browser">
 
-Folders come first, then games, each sorted by name. Only `.gba` files are
+Folders come first, then games, each sorted by name. Numbers are sorted by
+value ("Mega Man 2" before "Mega Man 10"), and accented letters sort with
+their base letter ("Égypte" next to "Egypt"), ignoring case. Only `.gba` files are
 listed. Hidden and system files are left out, as are the `._` files macOS
 leaves on cards. The title bar shows the folder name and your position in the
 list. Names too long for the screen scroll when selected. **B** in the top
 folder opens the main menu.
 
+With **Settings → Box art in list** on, the list takes the left part of the
+screen and the box art of the selected game (at half size), its game code
+and size appear on the right once the selection rests for a moment.
+
+<img src="images/sd-box-art.png" width="360" alt="SD card browser with box art">
+
 The browser remembers where you were in each folder while the GBA is on.
+Going up with **B** selects the folder you came from. In long folders,
+**Right** jumps to the first game of the next letter and **Left** back to
+the start of the letter (or the one before); all names starting with a
+digit count as one letter.
+
+File names with accents (`Pokémon - Version Émeraude`), Greek, Cyrillic and
+Japanese (kana and the common kanji) are shown as they are; other characters,
+such as Korean or rare Chinese characters, are shown as `?`.
 
 ### Game page
 
@@ -86,8 +105,16 @@ below it, and the options on the right:
 | **Copy to NOR** | Write the game into NOR flash, see [NOR flash](#nor-flash). |
 | **NOR + add-ons** | The same, with the add-ons built in. |
 | **Save** | Use **Left / Right** to override the detected save type. |
+| **Favorite** | **A** adds the game to Favorites or removes it. |
 | **Cheats** | Only shown when cheats are enabled and a cheat file was found. |
+| **Restore save** | Only shown when there is a backup: go back to the save from before the last start, see [Save backups](#save-backups). |
 | **Delete** | Delete the game file from the SD card. Its save file is kept. |
+
+### Favorites
+
+Games you marked with **Favorite** on their game page, sorted by name; up to
+64. Open it from the main menu. The list is stored in
+`/SAVER/Favorites.txt`.
 
 ### Recently played
 
@@ -124,8 +151,13 @@ enabled (the default) most well-known games skip this step entirely.
 ## Save types
 
 The kernel recognises the save type of over 2,800 games from their game code.
-Unknown games, including most homebrew, get 64 KB of SRAM, which suits nearly
-all of them.
+For a game that isn't in its list (a ROM hack, a prototype, a new
+translation), it looks for the name of the save chip that Nintendo's save
+library leaves in the game the first time you start it, which takes a few
+seconds. The game page shows "Found at start" until then. The result is
+remembered in `/SAVER/<game>.mde`. Games without such a name, including most
+homebrew, get 64 KB of SRAM, which suits nearly all of them. Detected EEPROM
+games get 8K EEPROM; the few that need 512 B must be set by hand.
 
 If a game doesn't save, or complains about its save memory, choose its save
 type by hand on the game page (**Save**, then **Left / Right**). The
@@ -141,6 +173,15 @@ game is started from NOR flash.
 
 Save files are standard 32/64/128 KB, 512 B or 8 KB images and work in
 emulators and other flash carts.
+
+### Save backups
+
+Each time you start a game, the kernel first copies its save file to
+`/SAVER/<game>.bak`. If a session goes wrong (a crash, a corrupted save, a
+wrong save type), open the game page **before starting the game again** and
+choose **Restore save**. This swaps the save and the backup, so choosing it
+once more undoes the restore. Starting the game replaces the backup with the
+current save.
 
 ## In-game add-ons
 
@@ -222,6 +263,7 @@ the settings of that moment.
 | Date & Time | | Sets the cartridge clock |
 | Clock for games | on | Lets games with a clock (Pokémon, Boktai, ...) read it |
 | Fast patching | on | Use the built-in database of patch locations |
+| Box art in list | off | Show the box art of the selected game next to the SD card list |
 
 Settings are saved in the cartridge when you leave the Settings screen.
 
@@ -252,7 +294,7 @@ on again. **Don't turn it off during the update.**
 | Problem | What to try |
 | --- | --- |
 | "No SD Card" at start-up | Re-insert the card. Check it is FAT32 or exFAT, not NTFS. |
-| A game is missing from the list | Only `.gba` files are listed; hidden files are not. Folders can hold up to 512 games and 256 subfolders. |
+| A game is missing from the list | Only `.gba` files are listed; hidden files are not. A folder lists up to 2,048 games and subfolders (fewer if the names are very long). |
 | "The file is too fragmented" | Copy the game to the card again (or defragment the card). |
 | A game doesn't save | Choose its save type by hand on the game page. |
 | A game crashes only with add-ons | Use **Play**. Delete `/PATCH/<game>.pat` and try again with **Fast patching** off. |

@@ -6,15 +6,11 @@
 
 #include <string.h>
 
+#include "core/utf8.h"
 #include "platform/attributes.h"
 
 /** Hot drawing loops run from IWRAM on the GBA (32-bit bus, no wait states). */
 #define GFX_FAST PLATFORM_FAST_CODE
-
-/** round(a * 256 / 15) for 4-bit coverage a; 256 means "replace". */
-static const uint16_t COVERAGE_WEIGHT[16] = {
-    0, 17, 34, 51, 68, 85, 102, 119, 137, 154, 171, 188, 205, 222, 239, 256,
-};
 
 /** Blend @p dst towards @p src; @p weight in 0..256. */
 static inline uint16_t blend(uint16_t dst, uint16_t src, int weight)
@@ -119,6 +115,25 @@ void gfx_move_rows(int y, int rows, int dy)
     uint16_t *fb = gfx_framebuffer();
     copy_words((uint32_t *)(fb + (y + dy) * GFX_WIDTH), (const uint32_t *)(fb + y * GFX_WIDTH),
                (unsigned)(rows * GFX_WIDTH / 2));
+}
+
+void gfx_move_area(int x, int width, int y, int rows, int dy)
+{
+    if (x == 0 && width == GFX_WIDTH) {
+        gfx_move_rows(y, rows, dy);
+        return;
+    }
+    if ((x | width) & 1 || x < 0 || width <= 0 || x + width > GFX_WIDTH || y < 0 || rows <= 0 ||
+        y + rows > GFX_HEIGHT || y + dy < 0 || y + dy + rows > GFX_HEIGHT) {
+        return;
+    }
+    uint16_t *fb = gfx_framebuffer();
+    /* Line by line, in the order that never overwrites a line still to move. */
+    for (int i = 0; i < rows; i++) {
+        int line = dy < 0 ? y + i : y + rows - 1 - i;
+        copy_words((uint32_t *)(fb + (line + dy) * GFX_WIDTH + x),
+                   (const uint32_t *)(fb + line * GFX_WIDTH + x), (unsigned)width / 2);
+    }
 }
 
 /** Clip a rectangle to the target. @return false if nothing is left. */
@@ -273,8 +288,9 @@ int gfx_text_width(const font_t *font, const char *text)
 {
     glyph_t g;
     int width = 0;
-    for (const unsigned char *p = (const unsigned char *)text; *p; p++) {
-        font_glyph(font, *p, &g);
+    uint32_t c;
+    while ((c = utf8_next(&text)) != 0) {
+        font_glyph(font, c, &g);
         width += g.advance;
     }
     return width;
@@ -282,10 +298,7 @@ int gfx_text_width(const font_t *font, const char *text)
 
 char *gfx_text_fit(const font_t *font, const char *text, int max_width, char *out, size_t out_size)
 {
-    size_t len = strlen(text);
-    if (len >= out_size) {
-        len = out_size - 1;
-    }
+    size_t len = utf8_prefix(text, out_size - 1);
     memcpy(out, text, len);
     out[len] = '\0';
 
@@ -294,11 +307,13 @@ char *gfx_text_fit(const font_t *font, const char *text, int max_width, char *ou
     int width = 0;
     size_t keep = 0;
     glyph_t g;
-    for (size_t i = 0; i < len; i++) {
-        font_glyph(font, (unsigned char)out[i], &g);
+    const char *p = out;
+    uint32_t c;
+    while ((c = utf8_next(&p)) != 0) {
+        font_glyph(font, c, &g);
         width += g.advance;
         if (width <= limit) {
-            keep = i + 1;
+            keep = (size_t)(p - out);
         }
     }
     if (width <= max_width) {
@@ -315,9 +330,10 @@ char *gfx_text_fit(const font_t *font, const char *text, int max_width, char *ou
     return out;
 }
 
+/* Glyphs are 1 bit per pixel: set pixels are drawn, the rest is left as is. */
 GFX_FAST static void draw_glyph(const glyph_t *g, int x, int y, uint16_t color)
 {
-    int row_bytes = (g->width + 1) / 2;
+    int row_bytes = (g->width + 7) / 8;
     for (int j = 0; j < g->height; j++) {
         int py = y + g->y_offset + j;
         if (py < s_top || py >= s_bottom) {
@@ -326,11 +342,9 @@ GFX_FAST static void draw_glyph(const glyph_t *g, int x, int y, uint16_t color)
         uint16_t *line = target_row(py);
         const uint8_t *row = g->bitmap + j * row_bytes;
         for (int i = 0; i < g->width; i++) {
-            int coverage = (i & 1) ? (row[i >> 1] & 0x0F) : (row[i >> 1] >> 4);
             int px = x + g->x_offset + i;
-            if (coverage && px >= 0 && px < GFX_WIDTH) {
-                uint16_t *p = &line[px];
-                *p = blend(*p, color, COVERAGE_WEIGHT[coverage]);
+            if ((row[i >> 3] & (0x80 >> (i & 7))) && px >= 0 && px < GFX_WIDTH) {
+                line[px] = color;
             }
         }
     }
@@ -354,8 +368,9 @@ int gfx_text(const font_t *font, int x, int y, uint16_t color, const char *text,
         use_screen();
     }
     glyph_t g;
-    for (const unsigned char *p = (const unsigned char *)text; *p; p++) {
-        font_glyph(font, *p, &g);
+    uint32_t c;
+    while ((c = utf8_next(&text)) != 0) {
+        font_glyph(font, c, &g);
         if (g.width) {
             draw_glyph(&g, x, y, color);
         }

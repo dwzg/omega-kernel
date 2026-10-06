@@ -3,14 +3,14 @@
 SIM_SRCS := sim/scenarios.c sim/platform_sim.c sim/disk_sim.c sim/stubs.c host/host.c \
             $(CORE_SRCS) $(GFX_SRCS) $(wildcard $(ROOT)/src/ui/*.c) $(ROOT)/src/data/save_type_db.c \
             $(addprefix $(ROOT)/src/loader/,directory.c library_files.c game_info.c sd_paths.c \
-                save_choice.c buffers.c boot_messages.c)
+                save_choice.c save_backup.c buffers.c boot_messages.c)
 FATFS_OBJS := $(addprefix $(BUILD)/fatfs/,ff.o ffunicode.o ffsystem.o)
 
 SIM_IMAGE  := $(BUILD)/sd.img
 SIM_GOLDEN := sim/golden.txt
 
 # FatFs is third-party code: build it without our extra warnings.
-$(BUILD)/fatfs/%.o: $(ROOT)/third_party/fatfs/%.c
+$(BUILD)/fatfs/%.o: $(ROOT)/third_party/fatfs/%.c $(wildcard $(ROOT)/third_party/fatfs/*.h)
 	@mkdir -p $(@D)
 	$(CC) $(filter-out -Werror -W%,$(CFLAGS)) -c $< -o $@
 

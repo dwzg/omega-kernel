@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-10-06
+
+Safer saves, favorites, file names in other languages and big folders.
+Saves, save states, settings and games in NOR flash from 2.0.0 keep working.
+The kernel file grows to about 870 KB because of the kanji.
+
 ### Added
 
 - **Start where you left off.** The kernel opens the folder of the game you
@@ -34,6 +40,10 @@ All notable changes to this project are documented here. The format follows
 
 - Folders are sorted the way people expect: numbers by value ("Mega Man 2"
   before "Mega Man 10") and accented letters with their base letter.
+- The game page has a new **Favorite** row, and **Restore save** when a backup
+  exists; the main menu has a new **Favorites** entry.
+- `/SAVER/<game>.mde` files also hold the detected save type (bytes 1–11);
+  the original kernel only reads byte 0, so they stay compatible.
 
 ### Fixed
 

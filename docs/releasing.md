@@ -18,7 +18,7 @@ as GitHub pre-releases.
 
 ## Steps
 
-1. Make sure CI is green on the main branch and the release was tested on
+1. Make sure CI is green on `master` and the release was tested on
    hardware.
 2. Update `VERSION`.
 3. In `CHANGELOG.md`, rename *Unreleased* to the new version with the date
@@ -28,7 +28,7 @@ as GitHub pre-releases.
 
    ```sh
    git tag v2.1.0
-   git push origin main v2.1.0
+   git push origin master v2.1.0
    ```
 
 The workflow then:

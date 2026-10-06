@@ -10,14 +10,14 @@
 
 #include <stdint.h>
 
-/** A font in the "OFNT" format. */
+/** A font in the "OFN2" format. */
 typedef struct {
     const uint8_t *data;
 } font_t;
 
 /** One glyph record. */
 typedef struct {
-    const uint8_t *bitmap; /**< 4 bits per pixel, rows padded to bytes. */
+    const uint8_t *bitmap; /**< 1 bit per pixel, MSB first, rows padded to bytes. */
     uint8_t width;
     uint8_t height;
     int8_t x_offset;
@@ -32,10 +32,10 @@ int font_line_height(const font_t *font);
 int font_ascent(const font_t *font);
 
 /**
- * @brief Look up the glyph for @p c. Characters the font lacks (including
- * all non-ASCII bytes) are shown as '?'.
+ * @brief Look up the glyph for Unicode code point @p c. Characters the font
+ * lacks are shown as '?'.
  */
-void font_glyph(const font_t *font, unsigned char c, glyph_t *out);
+void font_glyph(const font_t *font, uint32_t c, glyph_t *out);
 
 /** The three fonts of the user interface. */
 extern const font_t FONT_BODY;  /**< List rows and normal text (Galmuri11). */

@@ -16,6 +16,7 @@
 #include "loader/game_info.h"
 #include "loader/library_files.h"
 #include "loader/save_files.h"
+#include "loader/sd_paths.h"
 #include "ui/app.h"
 #include "ui/theme.h"
 #include "ui/widgets.h"
@@ -70,7 +71,7 @@ typedef struct {
     app_t *app;
     const char *path;
     game_info_t info;
-    char name[DIR_NAME_LEN];
+    char name[FF_LFN_BUF + 1]; /**< Full file name (saves are named after it). */
     save_choice_t save_choice;
     bool has_cheats;
     char cheat_path[PATH_MAX_LEN];
@@ -203,7 +204,7 @@ void ui_game_page(app_t *app, const char *path)
     memset(&page, 0, sizeof(page));
     page.app = app;
     page.path = path;
-    text_copy(page.name, sizeof(page.name), path_basename(path));
+    sd_long_name(path, page.name, sizeof(page.name));
     game_info_read(path, &page.info);
     page.save_choice = save_choice_read(page.name);
     g_cheat_code_count = 0;

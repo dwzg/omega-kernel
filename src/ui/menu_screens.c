@@ -11,6 +11,7 @@
 #include "loader/buffers.h"
 #include "loader/directory.h"
 #include "loader/library_files.h"
+#include "loader/sd_paths.h"
 #include "ui/app.h"
 #include "ui/theme.h"
 #include "ui/widgets.h"
@@ -132,6 +133,15 @@ void ui_sd_browser(app_t *app)
 
         ui_list_init(&list, total, 0, browser_row, NULL, CONTENT_TOP, ROW_HEIGHT);
         list.empty_text = "No games in this folder.";
+        if (app->select_name[0]) {
+            /* Select the last played game, or the folder we came back from. */
+            int found = directory_find(app->select_name);
+            if (found >= 0) {
+                pos->selected = (uint16_t)found;
+                pos->top = (uint16_t)(found >= LIST_ROWS / 2 ? found - LIST_ROWS / 2 : 0);
+            }
+            app->select_name[0] = '\0';
+        }
         list_view_restore(&list.view, pos->selected, pos->top);
 
         bool reload = false;
@@ -165,6 +175,8 @@ void ui_sd_browser(app_t *app)
                     if (strcmp(app->sd_path, "/") == 0) {
                         return;
                     }
+                    text_copy(app->select_name, sizeof(app->select_name),
+                              path_basename(app->sd_path));
                     path_to_parent(app->sd_path);
                     if (app->depth > 0) {
                         app->depth--;
@@ -173,8 +185,7 @@ void ui_sd_browser(app_t *app)
                 } else if (event == UI_LIST_ACTIVATE) {
                     unsigned index = ui_list_selected(&list);
                     char path[PATH_MAX_LEN];
-                    if (!path_join(path, sizeof(path), app->sd_path,
-                                   directory_entry(index)->name)) {
+                    if (!path_join(path, sizeof(path), app->sd_path, directory_open_name(index))) {
                         ui_message("Can't Open", "The path is too long.");
                         redraw = true;
                     } else if (directory_is_folder(index)) {
@@ -197,10 +208,13 @@ void ui_sd_browser(app_t *app)
 
 /* ------------------------------------------------------ recently played -- */
 
+/* Full names of the recently played games (a path may use a short name). */
+static char s_recent_names[RECENT_MAX][DIR_NAME_LEN];
+
 static void recent_row(void *ctx, unsigned index, ui_row_t *row)
 {
     (void)ctx;
-    display_name(row->label, sizeof(row->label), path_basename(g_recent.entries[index]));
+    display_name(row->label, sizeof(row->label), s_recent_names[index]);
     row->kind = ROW_CHEVRON;
 }
 
@@ -213,6 +227,9 @@ void ui_recent(app_t *app)
     for (;;) {
         platform_set_key_repeat(LIST_REPEAT_DELAY, LIST_REPEAT_RATE);
         recent_file_load(&g_recent);
+        for (unsigned i = 0; i < g_recent.count; i++) {
+            sd_long_name(g_recent.entries[i], s_recent_names[i], sizeof(s_recent_names[i]));
+        }
         ui_title_bar("Recently Played", NULL);
         ui_hints("A Select|B Back");
         ui_list_init(&list, g_recent.count, selected, recent_row, NULL, CONTENT_TOP, ROW_HEIGHT);

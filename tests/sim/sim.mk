@@ -10,7 +10,7 @@ SIM_IMAGE  := $(BUILD)/sd.img
 SIM_GOLDEN := sim/golden.txt
 
 # FatFs is third-party code: build it without our extra warnings.
-$(BUILD)/fatfs/%.o: $(ROOT)/third_party/fatfs/%.c
+$(BUILD)/fatfs/%.o: $(ROOT)/third_party/fatfs/%.c $(wildcard $(ROOT)/third_party/fatfs/*.h)
 	@mkdir -p $(@D)
 	$(CC) $(filter-out -Werror -W%,$(CFLAGS)) -c $< -o $@
 

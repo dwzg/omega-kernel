@@ -23,7 +23,8 @@ For the folders the kernel creates on the SD card, see
 2. Copy your `.gba` games onto it. Folders are fine, as deep as you like.
 3. To install or update the kernel, put `ezkernel.bin` in the root of the card,
    hold **R** while turning the GBA on and confirm.
-4. Turn the GBA on. The kernel opens the SD card directly.
+4. Turn the GBA on. The kernel opens the SD card at the game you played last
+   (or at the top folder the first time).
 
 The kernel needs no other files. It creates the folders it needs (`/SAVER`,
 `/RTS`, `/PATCH`) the first time they are used.
@@ -56,8 +57,9 @@ Main menu
 └── About
 ```
 
-The kernel starts in **SD Card**. Press **B** in the top folder to reach the
-main menu.
+The kernel starts in **SD Card**, in the folder of the game you played last,
+with that game selected. Press **B** to go up; in the top folder **B** opens
+the main menu.
 
 ### SD card browser
 
@@ -70,6 +72,11 @@ list. Names too long for the screen scroll when selected. **B** in the top
 folder opens the main menu.
 
 The browser remembers where you were in each folder while the GBA is on.
+Going up with **B** selects the folder you came from.
+
+File names with accents (`Pokémon - Version Émeraude`), Greek, Cyrillic and
+Japanese kana are shown as they are; other characters, such as kanji, are
+shown as `?`.
 
 ### Game page
 

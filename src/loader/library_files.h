@@ -37,6 +37,11 @@ bool cheat_file_find(const char *game_path, char *out, size_t out_size);
 typedef struct {
     FIL file;
     cht_reader_t reader;
+    /* Read buffer: cheat files are read as raw bytes, without FatFs's text
+     * conversion, since older files are not always valid UTF-8. */
+    char buffer[256];
+    unsigned buffered; /**< Bytes in @ref buffer. */
+    unsigned pos;      /**< Next byte to return. */
 } cheat_file_t;
 
 /** @brief Open a cheat file for parsing with the functions in cheat.h. */

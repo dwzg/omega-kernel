@@ -117,11 +117,10 @@ static boot_result_t play_clean(const boot_request_t *req, const game_info_t *in
     return BOOT_OK;
 }
 
-static boot_result_t play_with_hooks(const boot_request_t *req, const game_info_t *info,
-                                     save_mode_t save_mode, const settings_t *settings,
-                                     const progress_t *progress)
+static boot_result_t play_with_hooks(const boot_request_t *req, const char *name,
+                                     const game_info_t *info, save_mode_t save_mode,
+                                     const settings_t *settings, const progress_t *progress)
 {
-    const char *name = path_basename(req->path);
     bool any_hook = settings_any_hook(settings);
     bool store_cache = false;
 
@@ -203,7 +202,10 @@ static boot_result_t copy_to_nor(const boot_request_t *req, const game_info_t *i
 boot_result_t boot_sd_game(const boot_request_t *req, const settings_t *settings,
                            const progress_t *progress)
 {
-    const char *name = path_basename(req->path);
+    /* Saves and other companion files are named after the full name, also
+     * when the game was opened by its 8.3 short name. */
+    char name[FF_LFN_BUF + 1];
+    sd_long_name(req->path, name, sizeof(name));
     bool starting = req->action == BOOT_PLAY || req->action == BOOT_PLAY_WITH_HOOKS;
     game_info_t info;
     boot_result_t r;
@@ -241,7 +243,7 @@ boot_result_t boot_sd_game(const boot_request_t *req, const settings_t *settings
     if (req->action == BOOT_PLAY) {
         return play_clean(req, &info, settings, progress);
     }
-    return play_with_hooks(req, &info, save_mode, settings, progress);
+    return play_with_hooks(req, name, &info, save_mode, settings, progress);
 }
 
 boot_result_t boot_nor_game(unsigned index, bool bios_boot, const settings_t *settings,

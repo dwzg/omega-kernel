@@ -13,9 +13,9 @@
 
 static uint16_t s_framebuffer[GFX_WIDTH * GFX_HEIGHT];
 
-static uint8_t s_font_body[16384];
-static uint8_t s_font_small[16384];
-static uint8_t s_font_title[16384];
+static uint8_t s_font_body[65536];
+static uint8_t s_font_small[65536];
+static uint8_t s_font_title[65536];
 
 const font_t FONT_BODY = {s_font_body};
 const font_t FONT_SMALL = {s_font_small};

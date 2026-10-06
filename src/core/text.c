@@ -8,6 +8,8 @@
 #include <string.h>
 #include <strings.h>
 
+#include "core/utf8.h"
+
 bool text_copy(char *dst, size_t size, const char *src)
 {
     if (size == 0) {
@@ -16,7 +18,7 @@ bool text_copy(char *dst, size_t size, const char *src)
     size_t len = strlen(src);
     bool fits = len < size;
     if (!fits) {
-        len = size - 1;
+        len = utf8_prefix(src, size - 1); /* never cut a character in half */
     }
     memcpy(dst, src, len);
     dst[len] = '\0';

@@ -12,8 +12,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/** Longest name kept (longer names are cut, which only affects display). */
-#define DIR_NAME_LEN 100
+/** Space for a displayed name; longer names are shortened for display. */
+#define DIR_NAME_LEN 84
 /** Maximum number of folders listed. */
 #define DIR_MAX_FOLDERS 256
 /** Maximum number of games listed. */
@@ -21,8 +21,9 @@
 
 /** One listed entry. */
 typedef struct {
-    char name[DIR_NAME_LEN];
-    uint32_t size; /**< Bytes (0 for folders). */
+    char name[DIR_NAME_LEN]; /**< UTF-8 name, cut short if it doesn't fit. */
+    char short_name[13];     /**< 8.3 name if @ref name was cut short, else "". */
+    uint32_t size;           /**< Bytes (0 for folders). */
 } dir_entry_t;
 
 /** Summary of the last listing. */
@@ -43,5 +44,14 @@ const dir_entry_t *directory_entry(unsigned index);
 
 /** @brief true if entry @p index of the last listing is a folder. */
 bool directory_is_folder(unsigned index);
+
+/**
+ * @brief The name to open entry @p index with: its full name, or its 8.3
+ * short name if the full name was too long to keep.
+ */
+const char *directory_open_name(unsigned index);
+
+/** @brief Index of the entry opened as @p name in the last listing, or -1. */
+int directory_find(const char *name);
 
 #endif /* LOADER_DIRECTORY_H */

@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include "core/path.h"
+#include "core/text.h"
 #include "ff.h"
 #include "hal/config_flash.h"
 #include "hal/nor.h"
@@ -16,6 +17,7 @@
 #include "hal/platform.h"
 #include "loader/buffers.h"
 #include "loader/game_info.h"
+#include "loader/sd_paths.h"
 #include "platform/attributes.h"
 
 nor_entry_t g_nor_table[NOR_MAX_GAMES] PLATFORM_EWRAM;
@@ -140,7 +142,9 @@ nor_write_result_t nor_game_write(const char *path, unsigned index, uint32_t off
     entry.size = needed;
     entry.has_hooks = with_hooks;
     entry.has_save_state = with_hooks && patch->settings.save_state_hook;
-    snprintf(entry.filename, sizeof(entry.filename), "%s", path_basename(path));
+    char name[FF_LFN_BUF + 1];
+    sd_long_name(path, name, sizeof(name));
+    text_copy(entry.filename, sizeof(entry.filename), name);
     g_nor_table[index] = entry;
 
     nor_unprotect_all();

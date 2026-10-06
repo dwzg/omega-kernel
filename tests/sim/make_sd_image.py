@@ -33,6 +33,13 @@ GAMES = [
     ("GBA/Puzzle/Puyo Pop.gba", "PUYOPOP", "APUE", 4 << 20),
     ("GBA/RPG/Final Fantasy VI Advance.gba", "FF6ADVANCE", "BZ6E", 8 << 20),
     ("ATTR/Normal.gba", "NORMAL", "ZNOR", 1 << 20),
+    # Names beyond ASCII: shown with their accents and kana; a name too long
+    # for the browser is opened through its 8.3 short name.
+    ("GBA/World/Pokémon - Version Émeraude.gba", "POKEMON EMER", "BPEF", 1 << 20),
+    ("GBA/World/ポケットモンスター エメラルド.gba", "POKEMON EMER", "BPEJ", 1 << 20),
+    ("GBA/World/Jeux Français/Astérix & Obélix XXL.gba", "ASTERIX", "BLXP", 1 << 20),
+    ("GBA/World/ファイナルファンタジータクティクスアドバンス (Japan) (Rev 1) (Translated) [v1.2].gba",
+     "FFTA", "AFXJ", 1 << 20),
     ("ATTR/No Archive Bit.gba", "NOARCHIVE", "ZNOA", 1 << 20),
     ("ATTR/Read Only.gba", "READONLY", "ZRDO", 1 << 20),
     ("ATTR/Hidden.gba", "HIDDEN", "ZHID", 1 << 20),
@@ -105,7 +112,8 @@ def main():
             os.remove(image)
         subprocess.run(["mkfs.vfat", "-C", "-F", "32", "-i", "0E2A0001", "-n", "OMEGA", image,
                         str(160 * 1024)], check=True, stdout=subprocess.DEVNULL)
-        env = dict(os.environ, MTOOLS_SKIP_CHECK="1")
+        # A UTF-8 locale makes mtools store non-ASCII names as long names.
+        env = dict(os.environ, MTOOLS_SKIP_CHECK="1", LC_ALL="C.UTF-8")
         top = sorted(os.listdir(stage))
         subprocess.run(["mcopy", "-s", "-i", image] + [os.path.join(stage, t) for t in top] +
                        ["::/"], check=True, env=env)

@@ -77,8 +77,7 @@ positions per folder depth) lives in `app_t`.
 
 The display runs in mode 3: a 240 × 160 frame buffer of 15-bit colours.
 `gfx.c` provides fills, frames, image blits (full and half size) and text.
-Glyphs are stored with 4-bit coverage, so the renderer could blend
-anti-aliased fonts, but the pixel fonts only use fully on or off.
+Text is UTF-8 (`core/utf8.c`); glyphs are 1 bit per pixel.
 
 Lists redraw only what changes, and never show anything half-drawn:
 
@@ -96,16 +95,20 @@ Lists redraw only what changes, and never show anything half-drawn:
 ## Fonts
 
 The fonts are BDF bitmap fonts in `assets/fonts/src/` (Galmuri by Lee Minseo,
-SIL Open Font License, reduced to printable ASCII). `tools/make_font.py`
-converts them, as listed in `assets/fonts/fonts.txt`:
+SIL Open Font License, reduced to the characters the kernel shows).
+`tools/make_font.py` converts them, as listed in `assets/fonts/fonts.txt`:
 
 ```sh
 python3 tools/make_font.py --all          # regenerate
 python3 tools/make_font.py --all --check  # what CI runs
 ```
 
-The format ("OFNT") is documented at the top of the script. Fonts cover
-printable ASCII; other characters are drawn as `?`.
+The format ("OFN2") is documented at the top of the script. Fonts cover
+ASCII, Latin-1 and Latin Extended-A (accented letters), Greek, Cyrillic,
+common punctuation, Japanese kana and full-width ASCII (`RANGES` in the
+script); the bold title font takes characters it lacks from Galmuri11.
+Other characters are drawn as `?`. To add a range, extend `RANGES`, subset
+the full Galmuri BDF files again with `--subset` and run `--all`.
 
 ## Changing the interface
 

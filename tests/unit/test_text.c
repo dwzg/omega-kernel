@@ -6,6 +6,7 @@
 #include "core/game_file.h"
 #include "core/path.h"
 #include "core/text.h"
+#include "core/utf8.h"
 
 TEST(text_copy_fits)
 {
@@ -114,6 +115,40 @@ TEST(game_file_companion_replaces_extension)
     CHECK_STR("My.Game.pat", buf);
 }
 
+TEST(utf8_decodes_common_characters)
+{
+    const char *p = "A\xC3\xA9\xE3\x83\x9D\xF0\x9F\x8E\xAE";
+    CHECK_EQ('A', utf8_next(&p));
+    CHECK_EQ(0xE9, utf8_next(&p));    /* é */
+    CHECK_EQ(0x30DD, utf8_next(&p));  /* ポ */
+    CHECK_EQ(0x1F3AE, utf8_next(&p)); /* 🎮 */
+    CHECK_EQ(0, utf8_next(&p));
+    CHECK_EQ(0, utf8_next(&p)); /* stays at the end */
+}
+
+TEST(utf8_rejects_invalid_bytes)
+{
+    const char *p = "\x80x\xC3(\xE3\x83\xC0\x80\xED\xA0\x80";
+    CHECK_EQ(UTF8_INVALID, utf8_next(&p)); /* stray continuation */
+    CHECK_EQ('x', utf8_next(&p));
+    CHECK_EQ(UTF8_INVALID, utf8_next(&p)); /* lead byte without continuation */
+    CHECK_EQ('(', utf8_next(&p));
+    CHECK_EQ(UTF8_INVALID, utf8_next(&p)); /* truncated 3-byte sequence... */
+    CHECK_EQ(UTF8_INVALID, utf8_next(&p)); /* ...leaves a stray continuation */
+    CHECK_EQ(UTF8_INVALID, utf8_next(&p)); /* overlong encoding (one character) */
+    CHECK_EQ(UTF8_INVALID, utf8_next(&p)); /* surrogate */
+    CHECK_EQ(0, utf8_next(&p));
+}
+
+TEST(text_copy_keeps_characters_whole)
+{
+    char buf[4];
+    CHECK(!text_copy(buf, sizeof(buf), "ab\xC3\xA9")); /* "abé" needs 5 bytes */
+    CHECK_STR("ab", buf);
+    CHECK_EQ(2, utf8_prefix("ab\xC3\xA9", 3));
+    CHECK_EQ(4, utf8_prefix("ab\xC3\xA9", 9));
+}
+
 SUITE(text)
 {
     RUN(text_copy_fits);
@@ -128,4 +163,7 @@ SUITE(text)
     RUN(path_basename_and_split);
     RUN(game_file_is_gba_matches_extension_only);
     RUN(game_file_companion_replaces_extension);
+    RUN(utf8_decodes_common_characters);
+    RUN(utf8_rejects_invalid_bytes);
+    RUN(text_copy_keeps_characters_whole);
 }

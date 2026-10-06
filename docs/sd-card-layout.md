@@ -25,8 +25,11 @@ and cartridges can be moved between the two.
 `/GBA/RPG/Golden Sun.gba` is `/SAVER/Golden Sun.sav`. Games with the same file
 name in different folders therefore share their save.
 
-Paths are limited to 255 characters. File names may be long names; characters
-outside ASCII are shown as `?`.
+Paths are limited to 255 characters. File names may be long names in any
+language. The kernel shows Latin letters with accents, Greek, Cyrillic and
+Japanese kana; other characters (such as kanji) are shown as `?`. Names longer
+than about 80 bytes are shortened in the list and opened through their 8.3
+short name, but their save and other files still use the full name.
 
 ## Save files (`/SAVER/*.sav`)
 

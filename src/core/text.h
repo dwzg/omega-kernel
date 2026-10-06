@@ -13,6 +13,7 @@
 
 /**
  * @brief Copy @p src into @p dst (capacity @p size), always NUL-terminating.
+ * A truncated copy never ends inside a UTF-8 character.
  * @return true if the whole string fit, false if it was truncated.
  */
 bool text_copy(char *dst, size_t size, const char *src);

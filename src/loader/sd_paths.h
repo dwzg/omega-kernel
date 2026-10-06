@@ -40,6 +40,13 @@ bool sd_mount(void);
 bool sd_companion_path(char *dst, size_t size, const char *dir, const char *filename,
                        const char *ext3);
 
+/**
+ * @brief The full (long) name of the file at @p path, which may have been
+ * opened by its 8.3 short name. Falls back to the last part of @p path.
+ * Companion files (saves, save states, ...) are named after this name.
+ */
+void sd_long_name(const char *path, char *out, size_t size);
+
 /** @brief Create a folder if it does not exist. @return true if it exists afterwards. */
 bool sd_ensure_folder(const char *path);
 

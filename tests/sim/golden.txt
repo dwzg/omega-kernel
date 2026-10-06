@@ -1,7 +1,7 @@
 sd_root                          0246f227
 sd_root_long_name                3bb36884
 sd_root_marquee                  777915ff
-sd_folder                        415473c6
+sd_folder                        4b85a07c
 sd_subfolder                     0504309f
 sd_back_to_root                  76dde7f8
 main_menu                        98679f1d
@@ -22,6 +22,10 @@ game_page_cheats_on              e2e7c92f
 recent                           229e77a0
 recent_from_menu                 229e77a0
 recent_game_page                 08c9fcea
+resume_last_game                 fe934683
+resume_back_selects_folder       9ad4794c
+resume_top_folder_game           932e588d
+resume_missing_folder            0246f227
 nor_library                      f266e264
 nor_game_page                    8868ad8c
 nor_delete_refused               b509eb74
@@ -39,4 +43,10 @@ settings_hotkey_saved            e9ce28cd
 datetime_editor                  cf758624
 datetime_editor_changed          6aa4fcd2
 settings_after_datetime          8f1ca3d8
+names_resume_kana                bf175682
+names_kana_game_page             d9505bbe
+names_long_name_selected         dbbf72c3
+names_long_name_game_page        6ed973a1
+names_accented_game_page         1237bdda
+names_accented_folder            7193ebae
 about                            462bb8be

@@ -13,6 +13,8 @@
 #include "ff.h"
 #include "platform/attributes.h"
 
+_Static_assert(sizeof(dir_entry_t) <= 104, "the listing must fit into EWRAM");
+
 static dir_entry_t s_folders[DIR_MAX_FOLDERS] PLATFORM_EWRAM;
 static dir_entry_t s_files[DIR_MAX_FILES] PLATFORM_EWRAM;
 static dir_listing_t s_listing;
@@ -55,7 +57,12 @@ bool directory_read(const char *path, dir_listing_t *listing)
             continue;
         }
         dir_entry_t *e = folder ? &s_folders[*count] : &s_files[*count];
-        text_copy(e->name, sizeof(e->name), info.fname);
+        /* A name too long to keep is shown shortened and opened by its
+         * 8.3 short name. */
+        e->short_name[0] = '\0';
+        if (!text_copy(e->name, sizeof(e->name), info.fname)) {
+            text_copy(e->short_name, sizeof(e->short_name), info.altname);
+        }
         e->size = folder ? 0 : (uint32_t)info.fsize;
         (*count)++;
     }
@@ -66,6 +73,22 @@ bool directory_read(const char *path, dir_listing_t *listing)
     qsort(s_files, s_listing.files, sizeof(s_files[0]), compare_names);
     *listing = s_listing;
     return true;
+}
+
+const char *directory_open_name(unsigned index)
+{
+    const dir_entry_t *e = directory_entry(index);
+    return e->short_name[0] ? e->short_name : e->name;
+}
+
+int directory_find(const char *name)
+{
+    for (unsigned i = 0; i < s_listing.folders + s_listing.files; i++) {
+        if (strcmp(directory_open_name(i), name) == 0) {
+            return (int)i;
+        }
+    }
+    return -1;
 }
 
 bool directory_is_folder(unsigned index)

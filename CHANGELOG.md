@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Start where you left off.** The kernel opens the folder of the game you
+  played last, with that game selected. **B** selects the folder you came
+  from.
+- **File names in other languages.** Accented letters (é, ü, ñ, ...), Greek,
+  Cyrillic and Japanese kana are shown instead of `?`. Names too long to keep
+  are shortened in the list; their saves keep the full name.
+
+### Fixed
+
+- Gauntlet: Dark Legacy (AYGE) uses 512 B EEPROM, not 8 KB, so it saves again.
+
 ## [2.0.0] - 2026-10-05
 
 A rewrite of the kernel with a new interface. Saves, save states, settings,

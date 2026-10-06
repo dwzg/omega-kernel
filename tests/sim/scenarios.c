@@ -13,6 +13,8 @@
 #include <string.h>
 #include <sys/stat.h>
 
+#include "core/path.h"
+#include "ff.h"
 #include "host.h"
 #include "loader/directory.h"
 #include "loader/sd_paths.h"
@@ -312,6 +314,52 @@ static const sim_step_t SETTINGS[] = {
     END,
 };
 
+/* Start-up opens the folder of the last played game with it selected; B
+ * then selects the folder we came from. */
+static const sim_step_t RESUME[] = {
+    WAIT(2), SHOT("resume_last_game"), B, WAIT(2), SHOT("resume_back_selects_folder"), END,
+};
+
+static const sim_step_t RESUME_TOP[] = {
+    WAIT(2),
+    SHOT("resume_top_folder_game"),
+    END,
+};
+
+static const sim_step_t RESUME_MISSING[] = {
+    WAIT(2),
+    SHOT("resume_missing_folder"),
+    END,
+};
+
+/* File names beyond ASCII: accents, kana, and a name too long for the
+ * browser that is opened through its short name. */
+static const sim_step_t WORLD_NAMES[] = {
+    WAIT(2),
+    SHOT("names_resume_kana"), /* the last played game is selected */
+    A,
+    WAIT(2),
+    SHOT("names_kana_game_page"),
+    B,
+    UP,
+    WAIT(2),
+    SHOT("names_long_name_selected"), /* shortened in the list */
+    A,
+    WAIT(2),
+    SHOT("names_long_name_game_page"), /* opened by its short name */
+    B,
+    UP,
+    A,
+    WAIT(2),
+    SHOT("names_accented_game_page"),
+    B,
+    UP,
+    A,
+    WAIT(2),
+    SHOT("names_accented_folder"),
+    END,
+};
+
 static const sim_step_t ABOUT[] = {
     B, DOWN, DOWN, DOWN, DOWN, A, WAIT(2), SHOT("about"), END,
 };
@@ -446,6 +494,42 @@ static void check_attribute_filter(void)
     }
 }
 
+/**
+ * Names beyond ASCII are listed as UTF-8, and a name too long for the
+ * browser is replaced by its 8.3 short name, which still opens the file.
+ */
+static void check_world_names(void)
+{
+    dir_listing_t listing;
+    char path[PATH_MAX_LEN];
+    FIL f;
+    bool found_accented = false;
+    bool found_short = false;
+
+    fresh_card();
+    EXPECT(directory_read("/GBA/World", &listing));
+    EXPECT(listing.folders == 1 && listing.files == 3);
+    for (unsigned i = 0; i < listing.folders + listing.files; i++) {
+        const char *name = directory_entry(i)->name;
+        found_accented |= strcmp(name, "Pok\xC3\xA9mon - Version \xC3\x89meraude.gba") == 0;
+        if (strcmp(directory_open_name(i), name) != 0) {
+            /* Too long to keep: shown shortened, opened by its short name. */
+            found_short = true;
+            EXPECT(strchr(directory_open_name(i), '~') != NULL);
+            EXPECT(path_join(path, sizeof(path), "/GBA/World", directory_open_name(i)));
+            EXPECT(f_open(&f, path, FA_READ) == FR_OK);
+            f_close(&f);
+            /* Saves and other companion files use the full name. */
+            char full[FF_LFN_BUF + 1];
+            sd_long_name(path, full, sizeof(full));
+            EXPECT(strlen(full) > DIR_NAME_LEN && strstr(full, "[v1.2].gba") != NULL);
+        }
+        EXPECT(strlen(name) < DIR_NAME_LEN);
+    }
+    EXPECT(found_accented);
+    EXPECT(found_short);
+}
+
 /** Root listing: folders first, then games, both sorted; other files hidden. */
 static void check_root_listing(void)
 {
@@ -463,11 +547,35 @@ static void check_root_listing(void)
 
 /* -------------------------------------------------------------- main -- */
 
-static void run(const sim_step_t *script, const uint16_t *settings)
+/** For run_with_history(): keep the card's own recently played list. */
+static const char KEEP_HISTORY[] = "";
+
+/**
+ * Run @p script on a fresh card whose play history is: none (NULL), the
+ * card's own list (KEEP_HISTORY), or just @p last_played.
+ */
+static void run_with_history(const sim_step_t *script, const uint16_t *settings,
+                             const char *last_played)
 {
     fresh_card();
     sim_nor_set_games(4);
+    if (!last_played) {
+        f_unlink(SD_FILE_RECENT);
+    } else if (last_played != KEEP_HISTORY) {
+        FIL f;
+        UINT written;
+        f_open(&f, SD_FILE_RECENT, FA_WRITE | FA_CREATE_ALWAYS);
+        f_write(&f, last_played, (UINT)strlen(last_played), &written);
+        f_write(&f, "\n", 1, &written);
+        f_close(&f);
+    }
     sim_run(script, settings, on_shot);
+}
+
+/** Most scenarios start without a play history, in the top folder. */
+static void run(const sim_step_t *script, const uint16_t *settings)
+{
+    run_with_history(script, settings, NULL);
 }
 
 int main(int argc, char **argv)
@@ -492,6 +600,7 @@ int main(int argc, char **argv)
     load_golden(argv[2]);
 
     check_attribute_filter();
+    check_world_names();
     check_root_listing();
 
     memset(cheats_on, 0xFF, sizeof(cheats_on));
@@ -511,7 +620,16 @@ int main(int argc, char **argv)
     EXPECT(sim_boot_requests() == 1);
     run(HOMEBREW, NULL);
     run(CHEATS, cheats_on);
-    run(RECENT, NULL);
+    run_with_history(RECENT, NULL, KEEP_HISTORY);
+    run_with_history(RESUME, NULL, "/GBA/RPG/Final Fantasy VI Advance.gba");
+    run_with_history(RESUME_TOP, NULL, "/Metroid Fusion.gba");
+    run_with_history(RESUME_MISSING, NULL, "/GBA/Missing Folder/Game.gba");
+    {
+        /* A last played game whose folder is gone: start in the top folder. */
+        const golden_t *a = find_actual("resume_missing_folder");
+        const golden_t *b = find_actual("sd_root");
+        EXPECT(a && b && a->crc == b->crc);
+    }
     run(NOR_LIBRARY, NULL);
     run(SETTINGS, NULL);
     {
@@ -525,6 +643,10 @@ int main(int argc, char **argv)
             EXPECT(stored[SETTINGS_WORD_SLEEP_HOOK] == 0);
         }
     }
+    run_with_history(WORLD_NAMES, NULL,
+                     "/GBA/World/\xE3\x83\x9D\xE3\x82\xB1\xE3\x83\x83\xE3\x83\x88"
+                     "\xE3\x83\xA2\xE3\x83\xB3\xE3\x82\xB9\xE3\x82\xBF\xE3\x83\xBC "
+                     "\xE3\x82\xA8\xE3\x83\xA1\xE3\x83\xA9\xE3\x83\xAB\xE3\x83\x89.gba");
     run(ABOUT, NULL);
 
     if (s_update) {
